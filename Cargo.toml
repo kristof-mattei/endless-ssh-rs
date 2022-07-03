@@ -5,10 +5,10 @@ version = "0.0.0-development"
 edition = "2021"
 rust-version = "1.61.0"
 authors = ["Kristof Mattei"]
-description = "Rust end-to-end application"
+description = "endless-ssh-rs"
 license-file = "LICENSE"
-categories = ["starter", "end-to-end"]
-keywords = ["integrity", "end-to-end", "starter", "docker", "release"]
+categories = ["ssh", "hacker"]
+keywords = ["ssh", "hacker"]
 repository = "https://github.com/kristof-mattei/endless-ssh-rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
