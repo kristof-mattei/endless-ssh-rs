@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/rust-end-to-end-application.iml" filepath="$PROJECT_DIR$/.idea/rust-end-to-end-application.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/endless-ssh-rs.iml" filepath="$PROJECT_DIR$/.idea/endless-ssh-rs.iml" />
     </modules>
   </component>
 </project>

@@ -19,17 +19,17 @@ RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/
 # This allows us to copy in the source in a different layer which in turn allows us to leverage Docker's layer caching
 # That means that if our dependencies don't change rebuilding is much faster
 WORKDIR /build
-RUN cargo new rust-end-to-end-application
-WORKDIR /build/rust-end-to-end-application
+RUN cargo new endless-ssh-rs
+WORKDIR /build/endless-ssh-rs
 COPY Cargo.toml Cargo.lock ./
-RUN --mount=type=cache,target=/build/rust-end-to-end-application/target \
+RUN --mount=type=cache,target=/build/endless-ssh-rs/target \
     cargo build --release --target ${TARGET}
 
 
 # now we copy in the source which is more prone to changes and build it
 COPY src ./src
 # --release not needed, it is implied with install
-RUN --mount=type=cache,target=/build/rust-end-to-end-application/target \
+RUN --mount=type=cache,target=/build/endless-ssh-rs/target \
     cargo install --path . --target ${TARGET} --root /output
 
 FROM alpine:3.16.0@sha256:686d8c9dfa6f3ccfc8230bc3178d23f84eeaf7e457f36f271ab1acc53015037c
@@ -38,6 +38,6 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
 
 WORKDIR /app
-COPY --from=builder /output/bin/rust-end-to-end-application /app
+COPY --from=builder /output/bin/endless-ssh-rs /app
 USER appuser
-ENTRYPOINT ["/app/rust-end-to-end-application"]
+ENTRYPOINT ["/app/endless-ssh-rs"]
