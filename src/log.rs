@@ -15,7 +15,7 @@ pub(crate) enum LogLevel {
     Debug,
 }
 
-static LOGLEVEL: AtomicU8 = AtomicU8::new(2);
+pub(crate) static LOGLEVEL: AtomicU8 = AtomicU8::new(2);
 static LOG_TO_FILE: AtomicBool = AtomicBool::new(false);
 
 pub(crate) fn logmsg(level: LogLevel, message: impl AsRef<str>) {
