@@ -272,11 +272,11 @@ jobs:
         continue-on-error: true
 
       - name: Upload test results
-        uses: EnricoMi/publish-unit-test-result-action@f00bb47e1d89c6d98071d1b69e16a2b63c7fbfc1
+        uses: EnricoMi/publish-unit-test-result-action@00dc83be2fe226471b499944d6f220a178421ab7
         with:
           check_name: Test results
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          files: reports/results.xml
+          junit_files: reports/results.xml
 
       - name: Run grcov
         shell: bash
