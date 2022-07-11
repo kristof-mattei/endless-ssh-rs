@@ -5,19 +5,17 @@ use std::num::NonZeroU16;
 use std::num::NonZeroU32;
 use std::num::NonZeroUsize;
 
-use crate::log::logmsg;
-use crate::log::LogLevel;
+use tracing::event;
+use tracing::Level;
 
-pub(crate) const DEFAULT_PORT: u16 = 2223; // 1 -> 65535
-
-// milliseconds
-pub(crate) const DEFAULT_DELAY: u32 = 400;
-pub(crate) const DEFAULT_MAX_LINE_LENGTH: u64 = 32;
-pub(crate) const DEFAULT_MAX_CLIENTS: u64 = 4096;
+pub(crate) const DEFAULT_PORT: NonZeroU16 = unsafe { NonZeroU16::new_unchecked(2223) };
+pub(crate) const DEFAULT_DELAY_MS: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(10000) };
+pub(crate) const DEFAULT_MAX_LINE_LENGTH: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(32) };
+pub(crate) const DEFAULT_MAX_CLIENTS: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(64) };
 
 pub(crate) struct Config {
     pub(crate) port: NonZeroU16,
-    pub(crate) delay: NonZeroU32,
+    pub(crate) delay_ms: NonZeroU32,
     pub(crate) max_line_length: NonZeroUsize,
     pub(crate) max_clients: NonZeroUsize,
     pub(crate) bind_family: IpAddr,
@@ -26,16 +24,10 @@ pub(crate) struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            port: DEFAULT_PORT.try_into().expect("Default port cannot be 0"),
-            delay: DEFAULT_DELAY.try_into().expect("Default delay cannot be 0"),
-            max_line_length: usize::try_from(DEFAULT_MAX_LINE_LENGTH)
-                .expect("Default max line length should fit a usize")
-                .try_into()
-                .expect("Default max line length cannot be 0"),
-            max_clients: usize::try_from(DEFAULT_MAX_CLIENTS)
-                .expect("Default max clients should fit a usize")
-                .try_into()
-                .expect("Default max clients cannot be 0"),
+            port: DEFAULT_PORT,
+            delay_ms: DEFAULT_DELAY_MS,
+            max_line_length: DEFAULT_MAX_LINE_LENGTH,
+            max_clients: DEFAULT_MAX_CLIENTS,
             bind_family: IpAddr::V6(Ipv6Addr::UNSPECIFIED),
         }
     }
@@ -47,7 +39,7 @@ impl Config {
     }
 
     pub(crate) fn set_delay(&mut self, delay: NonZeroU32) {
-        self.delay = delay;
+        self.delay_ms = delay;
     }
 
     pub(crate) fn set_max_clients(&mut self, max_clients: NonZeroUsize) {
@@ -74,26 +66,15 @@ impl Config {
         self.bind_family = IpAddr::V6(Ipv6Addr::UNSPECIFIED);
     }
 
-    // pub(crate) fn set_bind_family_unspecified(&mut self) -> Result<(), ()> {
-    //     self.bind_family = AF_UNSPEC;
-    //     Ok(())
-    // }
-
     pub(crate) fn log(&self) {
-        logmsg(LogLevel::Info, format!("Port {}", self.port));
-        logmsg(LogLevel::Info, format!("Delay {}", self.delay));
-        logmsg(
-            LogLevel::Info,
-            format!("MaxLineLength {}", self.max_line_length),
-        );
-        logmsg(LogLevel::Info, format!("MaxClients {}", self.max_clients));
+        event!(Level::INFO, "Port: {}", self.port);
+        event!(Level::INFO, "Delay: {}ms", self.delay_ms);
+        event!(Level::INFO, "MaxLineLength: {}", self.max_line_length);
+        event!(Level::INFO, "MaxClients: {}", self.max_clients);
         let bind_family_description = match self.bind_family {
             IpAddr::V6(_) => "Ipv6 Only",
             IpAddr::V4(_) => "Ipv4 Only",
         };
-        logmsg(
-            LogLevel::Info,
-            format!("BindFamily {}", bind_family_description),
-        );
+        event!(Level::INFO, "BindFamily: {}", bind_family_description);
     }
 }

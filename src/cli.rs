@@ -1,20 +1,20 @@
 use crate::config::Config;
-use crate::config::DEFAULT_DELAY;
+use crate::config::DEFAULT_DELAY_MS;
 use crate::config::DEFAULT_MAX_CLIENTS;
 use crate::config::DEFAULT_MAX_LINE_LENGTH;
 use crate::config::DEFAULT_PORT;
-use crate::log::LOGLEVEL;
 
 use anyhow::Context;
+
 use clap::command;
 use clap::value_parser;
 use clap::Arg;
 use clap::ArgAction;
 use clap::ArgMatches;
+
 use std::num::NonZeroU16;
 use std::num::NonZeroU32;
 use std::num::NonZeroUsize;
-use std::sync::atomic::Ordering;
 
 fn get_cli_matches() -> ArgMatches {
     command!()
@@ -41,7 +41,7 @@ fn get_cli_matches() -> ArgMatches {
                 .help("Message millisecond delay")
                 .display_order(2)
                 .action(ArgAction::Set)
-                .default_value(DEFAULT_DELAY.to_string().as_str())
+                .default_value(DEFAULT_DELAY_MS.to_string().as_str())
                 .value_parser(value_parser!(u64).range(u64::from(1u32)..=u64::from(u32::MAX))),
         )
         .arg(
@@ -139,25 +139,7 @@ pub(crate) fn parse_cli(config: &mut Config) -> Result<(), anyhow::Error> {
         }
     }
 
-    if let Some(&d) = matches.get_one::<u8>("diagnostics") {
-        LOGLEVEL.store(d, Ordering::SeqCst);
-    }
-
     config.log();
-    // //         S_LOWER => {
-    // //             //                 logmsg = logsyslog;
-    // //         },
-
-    // //         F_LOWER => {
-    // //             //     config_file = optarg;
-    // //             // #if defined(__OpenBSD__)
-    // //             //                 unveil(config_file, "r");
-    // //             //                 if (unveil(0, 0) == -1)
-    // //             //                     die();
-    // //             // #endif
-
-    // //             //                 config_load(&config, optarg, 1);
-    // //         },
 
     Ok(())
 }

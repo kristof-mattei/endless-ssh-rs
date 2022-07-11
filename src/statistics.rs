@@ -1,6 +1,7 @@
+use tracing::event;
+use tracing::Level;
+
 use crate::client::Client;
-use crate::log::logmsg;
-use crate::log::LogLevel;
 use crate::time::epochms;
 
 #[derive(Default)]
@@ -19,15 +20,13 @@ impl Statistics {
             milliseconds += now - client.connect_time;
         }
 
-        logmsg(
-            LogLevel::Info,
-            format!(
-                "TOTALS connects={} seconds={}.{:03} bytes={}",
-                self.connects,
-                milliseconds / 1000,
-                milliseconds % 1000,
-                self.bytes_sent,
-            ),
+        event!(
+            Level::INFO,
+            "TOTALS connects={} seconds={}.{:03} bytes={}",
+            self.connects,
+            milliseconds / 1000,
+            milliseconds % 1000,
+            self.bytes_sent,
         );
     }
 }

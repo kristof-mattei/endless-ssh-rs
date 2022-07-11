@@ -1,7 +1,16 @@
-use anyhow::{Context, Result};
+use crate::config::Config;
+
+use anyhow::Context;
+use anyhow::Result;
+
 use libc::poll;
 use libc::pollfd;
 use libc::POLLIN;
+
+use tracing::event;
+use tracing::instrument;
+use tracing::Level;
+
 use std::io::Error;
 use std::io::ErrorKind;
 use std::net::IpAddr;
@@ -12,8 +21,7 @@ use std::ops::Deref;
 use std::os::unix::prelude::AsRawFd;
 use std::ptr::addr_of_mut;
 
-use crate::config::Config;
-
+#[derive(Debug)]
 pub(crate) struct Listener(TcpListener);
 
 impl Deref for Listener {
@@ -42,9 +50,12 @@ impl Listener {
             .set_nonblocking(true)
             .with_context(|| "Failed to set listener to non-blocking")?;
 
+        event!(Level::DEBUG, ?listener, "Bound and listening!");
+
         Ok(Self(listener))
     }
 
+    #[instrument]
     pub(crate) fn wait_poll(&self, timeout: i32) -> Result<bool, anyhow::Error> {
         // Wait for next event
         let mut fds: pollfd = pollfd {
@@ -53,20 +64,33 @@ impl Listener {
             revents: 0,
         };
 
-        println!("timoeut: {}", timeout);
+        event!(Level::DEBUG, "poll({}, {})", 1, timeout);
 
-        if unsafe { poll(addr_of_mut!(fds), 1, timeout) } == -1 {
+        let r = unsafe { poll(addr_of_mut!(fds), 1, timeout) };
+
+        if r == -1 {
             let last_error = Error::last_os_error();
             // poll & ppoll's EINTR cannot be avoided by using SA_RESTART
             // see https://stackoverflow.com/a/48553220
             if ErrorKind::Interrupted == last_error.kind() {
+                event!(Level::DEBUG, "Poll interrupted, but that's ok");
                 return Ok(false);
             }
 
-            return Err(last_error)
-                .with_context(|| "Something went wrong while waiting for the next call");
+            let wrapped = anyhow::Error::new(last_error)
+                .context("Something went wrong during polling / waiting for the next call");
+
+            event!(Level::ERROR, ?wrapped);
+
+            return Err(wrapped);
         }
 
-        Ok(fds.revents & POLLIN == POLLIN)
+        if fds.revents & POLLIN == POLLIN {
+            event!(Level::INFO, "Done polling because of incoming data");
+            Ok(true)
+        } else {
+            event!(Level::INFO, "Done polling because of timeout expiration");
+            Ok(false)
+        }
     }
 }
