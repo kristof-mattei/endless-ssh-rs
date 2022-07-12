@@ -4,7 +4,6 @@ use tracing::Level;
 use crate::client::Client;
 use crate::time::epochms;
 
-#[derive(Default)]
 pub(crate) struct Statistics {
     pub(crate) connects: u64,
     pub(crate) milliseconds: u128,
@@ -12,10 +11,19 @@ pub(crate) struct Statistics {
 }
 
 impl Statistics {
+    pub(crate) fn new() -> Self {
+        Self {
+            bytes_sent: 0,
+            connects: 0,
+            milliseconds: 0,
+        }
+    }
+
     pub(crate) fn log_totals(&self, clients: &[Client]) {
         let mut milliseconds = self.milliseconds;
 
         let now = epochms();
+
         for client in clients {
             milliseconds += now - client.connect_time;
         }

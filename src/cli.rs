@@ -139,7 +139,5 @@ pub(crate) fn parse_cli(config: &mut Config) -> Result<(), anyhow::Error> {
         }
     }
 
-    config.log();
-
     Ok(())
 }

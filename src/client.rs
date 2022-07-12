@@ -4,7 +4,6 @@ use crate::time::epochms;
 use libc::c_int;
 use libc::c_void;
 use libc::setsockopt;
-use libc::write;
 use libc::SOL_SOCKET;
 use libc::SO_RCVBUF;
 use tracing::event;
@@ -13,6 +12,7 @@ use tracing::Level;
 
 use std::io::Error;
 use std::io::ErrorKind;
+use std::io::Write;
 use std::mem::MaybeUninit;
 use std::net::IpAddr;
 use std::net::Shutdown;
@@ -99,40 +99,36 @@ impl Client {
 
     // Write a line to a client, returning client if it's still up.
     #[instrument]
-    pub(crate) fn sendline(mut self, max_line_length: usize) -> Option<(Self, Option<u64>)> {
+    pub(crate) fn sendline(&mut self, max_line_length: usize) -> Result<Option<u64>, ()> {
         let mut line = unsafe { MaybeUninit::<[MaybeUninit<u8>; 256]>::uninit().assume_init() };
         let len = randline(&mut line, max_line_length);
-        loop {
-            let out = unsafe { write(self.fd.as_raw_fd(), line.as_ptr().cast::<c_void>(), len) };
 
-            event!(Level::DEBUG, "write({}) = {}", self.fd.as_raw_fd(), out);
+        let buffer = unsafe { &*(std::ptr::addr_of!(line[0..len]) as *const [u8]) };
 
-            if out == -1 {
-                let last_error = Error::last_os_error();
+        match self.fd.write_all(buffer) {
+            Ok(()) => {
+                let bytes_sent = u64::try_from(len).expect("Didn't fit");
 
-                event!(Level::ERROR, ?last_error);
+                self.bytes_sent += bytes_sent;
 
-                match last_error.kind() {
-                    ErrorKind::Interrupted => {
-                        // EINTR
-                        continue;
-                    },
-                    ErrorKind::WouldBlock => {
-                        // EAGAIN, EWOULDBLOCK
-                        return Some((self, None));
-                    },
-                    _ => {
-                        self.destroy();
-                        return None;
-                    },
-                }
-            }
+                event!(
+                    Level::DEBUG,
+                    "write({}) = {}",
+                    self.fd.as_raw_fd(),
+                    bytes_sent
+                );
 
-            let bytes_sent = u64::try_from(out).expect("Sent negative bytes");
-
-            self.bytes_sent += bytes_sent;
-
-            return Some((self, Some(bytes_sent)));
+                Ok(Some(bytes_sent))
+            },
+            Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                // TODO log
+                // EAGAIN, EWOULDBLOCK
+                Ok(None)
+            },
+            _ => {
+                // TODO log
+                Err(())
+            },
         }
     }
 }
