@@ -21,7 +21,8 @@ anyhow = "1.0.58"
 clap = { version = "3.2.10", features = ["cargo"] }
 libc = "0.2.126"
 rand = "0.8.5"
-time = { version = "0.3.11", features = ["formatting"] }
+tracing = "0.1.35"
+tracing-subscriber = "0.3.14"
 # reqwest = { version = "0.11.5", features = ["json"] }
 # serde_json = "1.0.68"
 # serde = { version = "1.0.130", features = ["derive"] }

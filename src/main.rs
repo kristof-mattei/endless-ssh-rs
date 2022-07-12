@@ -1,128 +1,84 @@
 mod cli;
 mod client;
+mod clients;
 mod config;
 mod handlers;
 mod line;
-
 mod listener;
-mod log;
 mod statistics;
 mod time;
 
+use crate::cli::parse_cli;
+use crate::client::Client;
+use crate::clients::Clients;
+use crate::config::Config;
+use crate::handlers::set_up_handlers;
+use crate::listener::Listener;
+use crate::statistics::Statistics;
 use crate::time::epochms;
-use cli::parse_cli;
-use client::Client;
-use config::Config;
-use handlers::set_up_handlers;
-use listener::Listener;
-use log::logmsg;
-use statistics::Statistics;
+
+use tracing::event;
+use tracing::Level;
+
 use std::os::unix::io::AsRawFd;
-
-use libc::ECONNABORTED;
-use libc::EINTR;
-use libc::EMFILE;
-use libc::ENFILE;
-use libc::ENOBUFS;
-use libc::ENOMEM;
-use libc::EPROTO;
-use libc::EXIT_FAILURE;
-
-use log::LogLevel;
-use std::collections::VecDeque;
-
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
-
-fn destroy_clients(clients: &mut VecDeque<Client>) -> u128 {
-    let mut time_spent = 0;
-    for c in clients.drain(..) {
-        time_spent += c.destroy();
-    }
-
-    time_spent
-}
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
 static DUMPSTATS: AtomicBool = AtomicBool::new(false);
 
-fn handle_waiting_clients(clients: &mut VecDeque<Client>, config: &Config) -> (i32, u64) {
-    let now = epochms();
-
-    let mut bytes_sent = 0;
-
-    while let Some(c) = clients.front() {
-        if c.send_next <= now {
-            let c = clients.pop_front().unwrap();
-            if let Some((mut c, sent)) = c.sendline(config.max_line_length.get()) {
-                if let Some(s) = sent {
-                    bytes_sent += s;
-                }
-                c.send_next = now + u128::from(config.delay.get());
-                clients.push_back(c);
-            }
-        } else {
-            return (
-                i32::try_from(c.send_next - now).expect("Timeout didn't fit i32"),
-                bytes_sent,
-            );
-        }
-    }
-
-    (-1, bytes_sent)
-}
-
 fn main() -> Result<(), anyhow::Error> {
-    let mut statistics: Statistics = Statistics {
-        bytes_sent: 0,
-        milliseconds: 0,
-        connects: 0,
-    };
+    tracing_subscriber::fmt::init();
 
-    let mut config = Config::default();
+    let mut statistics: Statistics = Statistics::new();
+
+    let mut config = Config::new();
 
     parse_cli(&mut config)?;
 
-    // Log configuration
     config.log();
 
     // Install the signal handlers
     set_up_handlers()?;
 
-    let mut clients = VecDeque::<Client>::new();
+    let mut clients = Clients::new();
 
-    // let server = Server::create(config.port.into(), config.bind_family);
     let listener = Listener::start_listening(&config)?;
 
     while RUNNING.load(Ordering::SeqCst) {
         if DUMPSTATS.load(Ordering::SeqCst) {
             // print stats requested (SIGUSR1)
-
             statistics.log_totals(clients.make_contiguous());
             DUMPSTATS.store(false, Ordering::SeqCst);
         }
 
         // Enqueue clients that are due for another message
-        let (timeout, bytes_sent) = handle_waiting_clients(&mut clients, &config);
+        let (timeout, bytes_sent) = clients.process_queue(&config);
 
         statistics.bytes_sent += bytes_sent;
 
         if clients.len() < config.max_clients.get() && listener.wait_poll(timeout)? {
             let accept = listener.accept();
 
+            event!(Level::DEBUG, ?accept, "Incoming connection");
+
             statistics.connects += 1;
 
             match accept {
                 Ok((socket, addr)) => {
-                    let send_next = epochms() + u128::from(config.delay.get());
+                    let send_next = epochms() + u128::from(config.delay_ms.get());
                     match socket.set_nonblocking(true) {
                         Ok(_) => {},
                         Err(e) => {
-                            eprintln!(
-                                "Failed to set client to non-blockign mode, discarding, {}",
-                                e
+                            event!(
+                                Level::WARN,
+                                ?e,
+                                "Failed to set incoming to non-blocking mode, discarding"
                             );
-                            // TODO Close socket (?)
+
+                            drop(socket);
+                            // can't do anything anymore
+                            continue;
                         },
                     }
 
@@ -132,7 +88,8 @@ fn main() -> Result<(), anyhow::Error> {
 
                     let client = clients.back().unwrap();
 
-                    let message = format!(
+                    event!(
+                        Level::INFO,
                         "ACCEPT host={} port={} fd={} n={}/{}",
                         client.ipaddr,
                         client.port,
@@ -140,40 +97,47 @@ fn main() -> Result<(), anyhow::Error> {
                         clients.len(),
                         config.max_clients
                     );
-
-                    logmsg(LogLevel::Info, message);
                 },
-                Err(e) => {
-                    match e.raw_os_error() {
-                        Some(EMFILE | ENFILE) => {
-                            // config.max_clients = clients.len();
-                            // logmsg(LogLevel::Info, format!("MaxClients {}", clients.len()));
-                            logmsg(
-                                LogLevel::Info,
-                                format!("Unable to accept new connection due to {}", e),
-                            );
-                        },
-                        Some(ECONNABORTED | EINTR | ENOBUFS | ENOMEM | EPROTO) => {
-                            eprintln!("endless-ssh-rs: warning: {}", e);
-                        },
-                        _ => {
-                            eprintln!("endless-ssh-rs: fatal: {}", e);
-                            std::process::exit(EXIT_FAILURE);
-                        },
-                    }
+                Err(e) => match e.raw_os_error() {
+                    Some(libc::EMFILE) => {
+                        // libc::EMFILE is raised when we've reached our per-process
+                        // open handles, so we're setting the limit to the current connected clients
+                        config.max_clients = clients.len().try_into()?;
+                        event!(Level::WARN, ?e, "Unable to accept new connection");
+                    },
+                    Some(
+                        libc::ENFILE
+                        | libc::ECONNABORTED
+                        | libc::EINTR
+                        | libc::ENOBUFS
+                        | libc::ENOMEM
+                        | libc::EPROTO,
+                    ) => {
+                        // libc::ENFILE: whole system has too many open handles
+                        // libc::ECONNABORTED: connection aborted while accepting
+                        // libc::EINTR: signal came in while handling this syscall,
+                        // libc::ENOBUFS: no buffer space
+                        // libc::ENOMEM: no memory
+                        // libc::EPROTO: protocol error
+                        // all are non fatal
+                        event!(Level::INFO, ?e, "Unable to accept new connection");
+                    },
+                    _ => {
+                        let wrapped =
+                            anyhow::Error::new(e).context("Unable to accept new connection");
+                        event!(Level::ERROR, ?wrapped);
+                        return Err(wrapped);
+                    },
                 },
             }
         }
     }
 
-    let time_spent = destroy_clients(&mut clients);
+    let time_spent = clients.destroy_clients();
 
     statistics.milliseconds += time_spent;
 
     statistics.log_totals(&[]);
-
-    //     if (logmsg == logsyslog)
-    //         closelog();
 
     Ok(())
 }
