@@ -18,7 +18,7 @@ coverage = []
 
 [dependencies]
 anyhow = "1.0.58"
-clap = { version = "3.2.10", features = ["cargo"] }
+clap = { version = "3.2.11", features = ["cargo"] }
 libc = "0.2.126"
 rand = "0.8.5"
 tracing = "0.1.35"
