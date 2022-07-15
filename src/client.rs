@@ -13,7 +13,6 @@ use tracing::Level;
 use std::io::Error;
 use std::io::ErrorKind;
 use std::io::Write;
-use std::mem::MaybeUninit;
 use std::net::IpAddr;
 use std::net::Shutdown;
 use std::net::SocketAddr;
@@ -26,7 +25,7 @@ pub(crate) struct Client {
     pub(crate) ipaddr: IpAddr,
     pub(crate) connect_time: u128,
     pub(crate) send_next: u128,
-    pub(crate) bytes_sent: u64,
+    pub(crate) bytes_sent: usize,
     pub(crate) port: u16,
     pub(crate) fd: TcpStream,
 }
@@ -99,30 +98,23 @@ impl Client {
 
     // Write a line to a client, returning client if it's still up.
     #[instrument]
-    pub(crate) fn sendline(&mut self, max_line_length: usize) -> Result<Option<u64>, ()> {
-        let mut line = unsafe { MaybeUninit::<[MaybeUninit<u8>; 256]>::uninit().assume_init() };
-        let len = randline(&mut line, max_line_length);
+    pub(crate) fn sendline(&mut self, max_line_length: usize) -> Result<Option<usize>, ()> {
+        let buffer = randline(max_line_length);
 
-        let buffer = unsafe { &*(std::ptr::addr_of!(line[0..len]) as *const [u8]) };
-
-        match self.fd.write_all(buffer) {
+        match self.fd.write_all(buffer.as_slice()) {
             Ok(()) => {
-                let bytes_sent = u64::try_from(len).expect("Didn't fit");
-
+                let bytes_sent = buffer.len();
                 self.bytes_sent += bytes_sent;
 
-                event!(
-                    Level::DEBUG,
-                    "write({}) = {}",
-                    self.fd.as_raw_fd(),
-                    bytes_sent
-                );
+                // event!(Level::DEBUG, ?self, bytes_sent);
 
                 Ok(Some(bytes_sent))
             },
             Err(e) if e.kind() == ErrorKind::WouldBlock => {
                 // TODO log
                 // EAGAIN, EWOULDBLOCK
+
+                event!(Level::DEBUG, ?self, ?e);
                 Ok(None)
             },
             _ => {
