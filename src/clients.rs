@@ -1,9 +1,10 @@
-use std::{
-    collections::VecDeque,
-    ops::{Deref, DerefMut},
-};
+use std::collections::VecDeque;
+use std::ops::Deref;
+use std::ops::DerefMut;
 
-use crate::{client::Client, config::Config, statistics, time::epochms};
+use crate::client::Client;
+use crate::config::Config;
+use crate::time::epochms;
 
 pub(crate) struct Clients(VecDeque<Client>);
 
@@ -36,7 +37,7 @@ impl Clients {
         time_spent
     }
 
-    pub(crate) fn process_queue(&mut self, config: &Config) -> (i32, u64) {
+    pub(crate) fn process_queue(&mut self, config: &Config) -> (i32, usize) {
         let now = epochms();
 
         // TODO this needs to be added to statistics
