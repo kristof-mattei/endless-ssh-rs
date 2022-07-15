@@ -2,6 +2,7 @@ mod cli;
 mod client;
 mod clients;
 mod config;
+mod ffi_wrapper;
 mod handlers;
 mod line;
 mod listener;
@@ -93,7 +94,7 @@ fn main() -> Result<(), anyhow::Error> {
                         "ACCEPT host={} port={} fd={} n={}/{}",
                         client.ipaddr,
                         client.port,
-                        client.fd.as_raw_fd(),
+                        client.tcp_stream.as_raw_fd(),
                         clients.len(),
                         config.max_clients
                     );
