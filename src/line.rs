@@ -13,7 +13,7 @@ pub(crate) fn randline(maxlen: usize) -> Vec<u8> {
     buffer[len - 2] = 13;
     buffer[len - 1] = 10;
 
-    if buffer[0..4] == [b'S', b'S', b'H', b'-'] {
+    if len > 3 && buffer[0..4] == [b'S', b'S', b'H', b'-'] {
         buffer[0] = b'X';
     }
 
