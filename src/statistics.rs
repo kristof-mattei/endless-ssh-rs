@@ -7,7 +7,7 @@ use crate::time::epochms;
 pub(crate) struct Statistics {
     pub(crate) connects: u64,
     pub(crate) milliseconds: u128,
-    pub(crate) bytes_sent: u64,
+    pub(crate) bytes_sent: usize,
 }
 
 impl Statistics {
