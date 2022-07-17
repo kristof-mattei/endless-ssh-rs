@@ -1,11 +1,7 @@
+use crate::ffi_wrapper::set_receive_buffer_size;
 use crate::line::randline;
 use crate::time::epochms;
 
-use libc::c_int;
-use libc::c_void;
-use libc::setsockopt;
-use libc::SOL_SOCKET;
-use libc::SO_RCVBUF;
 use tracing::event;
 use tracing::instrument;
 use tracing::Level;
@@ -17,8 +13,6 @@ use std::net::IpAddr;
 use std::net::Shutdown;
 use std::net::SocketAddr;
 use std::net::TcpStream;
-use std::os::unix::prelude::AsRawFd;
-use std::ptr::addr_of;
 
 #[derive(Debug)]
 pub(crate) struct Client {
@@ -27,81 +21,69 @@ pub(crate) struct Client {
     pub(crate) send_next: u128,
     pub(crate) bytes_sent: usize,
     pub(crate) port: u16,
-    pub(crate) fd: TcpStream,
+    pub(crate) tcp_stream: TcpStream,
 }
 
 impl Client {
     pub(crate) fn new(fd: TcpStream, addr: SocketAddr, send_next: u128) -> Self {
+        const SIZE_IN_BYTES: usize = 1;
+
         let c = Client {
             ipaddr: addr.ip(),
             connect_time: epochms(),
             send_next,
             bytes_sent: 0,
-            fd,
+            tcp_stream: fd,
             port: addr.port(),
         };
-        //         // Set the smallest possible recieve buffer. This reduces local
-        //          * resource usage and slows down the remote end.
-        //
-        let value: i32 = 1;
 
-        #[allow(clippy::cast_possible_truncation)]
-        let r: c_int = unsafe {
-            setsockopt(
-                c.fd.as_raw_fd(),
-                SOL_SOCKET,
-                SO_RCVBUF,
-                addr_of!(value).cast::<c_void>(),
-                std::mem::size_of_val(&value) as u32,
-            )
-        };
-
-        event!(
-            Level::DEBUG,
-            "setsockopt({}, SO_RCVBUF, {}) = {}",
-            c.fd.as_raw_fd(),
-            value,
-            r
-        );
-
-        if r == -1 {
-            let last_error = Error::last_os_error();
-
-            event!(Level::ERROR, ?last_error);
+        // Set the smallest possible recieve buffer. This reduces local
+        // resource usage and slows down the remote end.
+        if let Err(e) = set_receive_buffer_size(&c.tcp_stream, SIZE_IN_BYTES) {
+            event!(Level::ERROR, ?e);
+        } else {
+            event!(
+                Level::DEBUG,
+                "Set the tcp steam's receive buffer to {}",
+                SIZE_IN_BYTES
+            );
         }
 
         c
     }
 
+    // Consumes the client. Shuts down the TCP connection.
     #[instrument]
     pub(crate) fn destroy(self) -> u128 {
-        event!(Level::DEBUG, "close({})", self.fd.as_raw_fd(),);
         let dt = epochms() - self.connect_time;
 
         event!(
             Level::INFO,
-            "CLOSE host={} port={} fd={} time={}.{:03} bytes={}",
+            "CLOSE host={} port={} stream={:?} time={}.{:03} bytes={}",
             self.ipaddr,
             self.port,
-            self.fd.as_raw_fd(),
+            self.tcp_stream,
             dt / 1000,
             dt % 1000,
             self.bytes_sent
         );
 
-        if let Err(e) = self.fd.shutdown(Shutdown::Both) {
-            event!(Level::ERROR, ?e);
+        event!(Level::DEBUG, "Shutting down {:?}", self);
+
+        if let Err(e) = self.tcp_stream.shutdown(Shutdown::Both) {
+            // warn because we're destroying.
+            event!(Level::WARN, ?e);
         }
 
         dt
     }
 
-    // Write a line to a client, returning client if it's still up.
+    /// Write a line to a client. Consumes the client. If the client is still up, return the client.
     #[instrument]
-    pub(crate) fn sendline(&mut self, max_line_length: usize) -> Result<Option<usize>, ()> {
+    pub(crate) fn sendline(&mut self, max_line_length: usize) -> Result<Option<usize>, Error> {
         let buffer = randline(max_line_length);
 
-        match self.fd.write_all(buffer.as_slice()) {
+        match self.tcp_stream.write_all(buffer.as_slice()) {
             Ok(()) => {
                 let bytes_sent = buffer.len();
                 self.bytes_sent += bytes_sent;
@@ -111,15 +93,17 @@ impl Client {
                 Ok(Some(bytes_sent))
             },
             Err(e) if e.kind() == ErrorKind::WouldBlock => {
-                // TODO log
                 // EAGAIN, EWOULDBLOCK
 
                 event!(Level::DEBUG, ?self, ?e);
+
                 Ok(None)
             },
-            _ => {
+            Err(e) => {
+                event!(Level::ERROR, ?self, ?e);
+
                 // TODO log
-                Err(())
+                Err(e)
             },
         }
     }
