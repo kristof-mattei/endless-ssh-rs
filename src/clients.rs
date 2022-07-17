@@ -57,7 +57,7 @@ impl Clients {
                         c.send_next = now + u128::from(config.delay_ms.get());
                         self.push_back(c);
                     },
-                    Err(()) => {
+                    Err(_) => {
                         milliseconds += c.destroy();
                     },
                 }
@@ -68,6 +68,7 @@ impl Clients {
                 );
             }
         }
+
         // TODO this is not a Rust way of returning 'no timeout'
         (-1, bytes_sent)
     }
