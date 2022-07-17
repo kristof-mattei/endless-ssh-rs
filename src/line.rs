@@ -20,13 +20,17 @@ mod rand {
 use self::rand as rng;
 
 pub(crate) fn randline(maxlen: usize) -> Vec<u8> {
+    // original did 3 + rand(s) % (maxlen - 2)
+    // so if rand(2) was 47, maxlen 50, the outcome is 3 + (47 % 48)
+    // we have a length of 50
+    // with a range we don't need to do - 2
     let len = rng::rand_in_range(3..=maxlen);
-    println!("Len = {}", len);
 
     let mut buffer = vec![0u8; len];
 
     for l in buffer.iter_mut().take(len - 2) {
-        *l = rng::rand_in_range(32..=(32 + 95));
+        // ASCII 32 .. (including) ASCII 126
+        *l = rng::rand_in_range(32..=126);
     }
 
     buffer[len - 2] = 13;
@@ -41,12 +45,35 @@ pub(crate) fn randline(maxlen: usize) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::RangeInclusive;
+    use std::{
+        ops::RangeInclusive,
+        sync::{Mutex, MutexGuard},
+    };
+
+    use mockall::lazy_static;
 
     use crate::line::{mock_rand, randline};
 
+    lazy_static! {
+        static ref MTX: Mutex<()> = Mutex::new(());
+    }
+
+    // When a test panics, it will poison the Mutex. Since we don't actually
+    // care about the state of the data we ignore that it is poisoned and grab
+    // the lock regardless.  If you just do `let _m = &MTX.lock().unwrap()`, one
+    // test panicking will cause all other tests that try and acquire a lock on
+    // that Mutex to also panic.
+    fn get_lock(m: &'static Mutex<()>) -> MutexGuard<'static, ()> {
+        match m.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        }
+    }
+
     #[test]
     fn test_randline() {
+        let _m = get_lock(&MTX);
+
         // mock rng
         let ctx = mock_rand::rand_in_range_context();
 
@@ -70,6 +97,8 @@ mod tests {
 
     #[test]
     fn test_randline_no_ssh_prefix() {
+        let _m = get_lock(&MTX);
+
         // mock rng
         let ctx = mock_rand::rand_in_range_context();
 
@@ -79,13 +108,18 @@ mod tests {
 
         let fake_randoms = [b'S', b'S', b'H', b'-'];
 
-        let mut i = 0;
-
-        ctx.expect::<u8, RangeInclusive<u8>>().returning(move |_| {
-            let l = fake_randoms[i];
-            i += 1;
-            l
-        });
+        ctx.expect::<u8, RangeInclusive<u8>>()
+            .times(1)
+            .return_const(fake_randoms[0]);
+        ctx.expect::<u8, RangeInclusive<u8>>()
+            .times(1)
+            .return_const(fake_randoms[1]);
+        ctx.expect::<u8, RangeInclusive<u8>>()
+            .times(1)
+            .return_const(fake_randoms[2]);
+        ctx.expect::<u8, RangeInclusive<u8>>()
+            .times(1)
+            .return_const(fake_randoms[3]);
 
         let max_len = 6;
 
