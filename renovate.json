@@ -23,6 +23,7 @@
       "automerge": false
     }
   ],
+  "platformAutomerge": true,
   "rangeStrategy": "replace",
   "rebaseWhen": "behind-base-branch"
 }
