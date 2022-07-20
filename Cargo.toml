@@ -24,7 +24,7 @@ mockall = "0.11.1"
 mockall_double = "0.3.0"
 rand = "0.8.5"
 tracing = "0.1.35"
-tracing-subscriber = "0.3.14"
+tracing-subscriber = "0.3.15"
 
 # We compile the Docker container with musl to get a static library. Smaller, faster.
 # BUT that means that we need to include openssl
