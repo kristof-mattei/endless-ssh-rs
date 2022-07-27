@@ -20,7 +20,7 @@ coverage = []
 anyhow = "1.0.58"
 clap = { version = "3.2.15", features = ["cargo"] }
 libc = "0.2.126"
-mockall = "0.11.1"
+mockall = "0.11.2"
 mockall_double = "0.3.0"
 rand = "0.8.5"
 tracing = "0.1.35"
