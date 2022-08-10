@@ -2,7 +2,7 @@ use mockall::automock;
 use mockall_double::double;
 
 #[automock]
-mod rand {
+mod rand_wrap {
     use rand::distributions::uniform::{SampleRange, SampleUniform};
     use rand::Rng;
 
@@ -17,20 +17,20 @@ mod rand {
 }
 
 #[double]
-use self::rand as rng;
+use self::rand_wrap as rand;
 
 pub(crate) fn randline(maxlen: usize) -> Vec<u8> {
     // original did 3 + rand(s) % (maxlen - 2)
     // so if rand(2) was 47, maxlen 50, the outcome is 3 + (47 % 48)
     // we have a length of 50
     // with a range we don't need to do - 2
-    let len = rng::rand_in_range(3..=maxlen);
+    let len = rand::rand_in_range(3..=maxlen);
 
     let mut buffer = vec![0u8; len];
 
     for l in buffer.iter_mut().take(len - 2) {
         // ASCII 32 .. (including) ASCII 126
-        *l = rng::rand_in_range(32..=126);
+        *l = rand::rand_in_range(32..=126);
     }
 
     buffer[len - 2] = 13;
@@ -52,7 +52,7 @@ mod tests {
 
     use mockall::lazy_static;
 
-    use crate::line::{mock_rand, randline};
+    use crate::line::{rand::rand_in_range_context, randline};
 
     lazy_static! {
         static ref MTX: Mutex<()> = Mutex::new(());
@@ -75,7 +75,7 @@ mod tests {
         let _m = get_lock(&MTX);
 
         // mock rng
-        let ctx = mock_rand::rand_in_range_context();
+        let ctx = rand_in_range_context();
 
         // set random length to requested maximum length
         ctx.expect::<usize, RangeInclusive<usize>>()
@@ -100,7 +100,7 @@ mod tests {
         let _m = get_lock(&MTX);
 
         // mock rng
-        let ctx = mock_rand::rand_in_range_context();
+        let ctx = rand_in_range_context();
 
         // set random length to requested maximum length
         ctx.expect::<usize, RangeInclusive<usize>>()

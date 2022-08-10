@@ -21,6 +21,12 @@ pub(crate) struct Config {
     pub(crate) bind_family: IpAddr,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Config::new()
+    }
+}
+
 impl Config {
     pub(crate) fn new() -> Self {
         Self {
