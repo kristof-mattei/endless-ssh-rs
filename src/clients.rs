@@ -4,7 +4,7 @@ use std::ops::DerefMut;
 
 use crate::client::Client;
 use crate::config::Config;
-use crate::time::epochms;
+use crate::time::milliseconds_since_epoch;
 
 pub(crate) struct Clients(VecDeque<Client>);
 
@@ -38,7 +38,7 @@ impl Clients {
     }
 
     pub(crate) fn process_queue(&mut self, config: &Config) -> (i32, usize) {
-        let now = epochms();
+        let now = milliseconds_since_epoch();
 
         // TODO this needs to be added to statistics
         #[allow(unused_variables)]

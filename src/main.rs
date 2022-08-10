@@ -16,7 +16,7 @@ use crate::config::Config;
 use crate::handlers::set_up_handlers;
 use crate::listener::Listener;
 use crate::statistics::Statistics;
-use crate::time::epochms;
+use crate::time::milliseconds_since_epoch;
 
 use tracing::event;
 use tracing::Level;
@@ -67,7 +67,7 @@ fn main() -> Result<(), anyhow::Error> {
 
             match accept {
                 Ok((socket, addr)) => {
-                    let send_next = epochms() + u128::from(config.delay_ms.get());
+                    let send_next = milliseconds_since_epoch() + u128::from(config.delay_ms.get());
                     match socket.set_nonblocking(true) {
                         Ok(_) => {},
                         Err(e) => {
