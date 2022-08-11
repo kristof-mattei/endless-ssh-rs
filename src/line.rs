@@ -2,7 +2,7 @@ use mockall::automock;
 use mockall_double::double;
 
 #[automock]
-mod rand {
+mod rand_wrap {
     use rand::distributions::uniform::{SampleRange, SampleUniform};
     use rand::Rng;
 
@@ -17,20 +17,20 @@ mod rand {
 }
 
 #[double]
-use self::rand as rng;
+use self::rand_wrap as rand;
 
 pub(crate) fn randline(maxlen: usize) -> Vec<u8> {
     // original did 3 + rand(s) % (maxlen - 2)
     // so if rand(2) was 47, maxlen 50, the outcome is 3 + (47 % 48)
     // we have a length of 50
     // with a range we don't need to do - 2
-    let len = rng::rand_in_range(3..=maxlen);
+    let len = rand::rand_in_range(3..=maxlen);
 
     let mut buffer = vec![0u8; len];
 
     for l in buffer.iter_mut().take(len - 2) {
         // ASCII 32 .. (including) ASCII 126
-        *l = rng::rand_in_range(32..=126);
+        *l = rand::rand_in_range(32..=126);
     }
 
     buffer[len - 2] = 13;
@@ -52,7 +52,10 @@ mod tests {
 
     use mockall::lazy_static;
 
-    use crate::line::{mock_rand, randline};
+    use crate::line::{
+        rand::{__rand_in_range, rand_in_range_context},
+        randline,
+    };
 
     lazy_static! {
         static ref MTX: Mutex<()> = Mutex::new(());
@@ -70,29 +73,58 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_randline() {
-        let _m = get_lock(&MTX);
-
-        // mock rng
-        let ctx = mock_rand::rand_in_range_context();
+    fn set_up_ctx() -> __rand_in_range::Context {
+        let ctx = rand_in_range_context();
 
         // set random length to requested maximum length
         ctx.expect::<usize, RangeInclusive<usize>>()
             .returning(|x| *x.end());
 
-        // every byte will be 66, or 'b'
-        ctx.expect::<u8, RangeInclusive<u8>>().return_const(65u8);
+        ctx
+    }
 
+    #[test]
+    fn test_randline() {
+        let _m = get_lock(&MTX);
+
+        // given
+        // mock rng
+        let ctx = set_up_ctx();
+
+        ctx.expect::<u8, RangeInclusive<u8>>().return_const(b'a');
+
+        // when
         let max_len = 50;
         let randline = randline(max_len);
+
+        // then
+        // did we get a line our length?
         assert_eq!(randline.len(), max_len);
 
         // since we mocked the Rng, we can make sure that the line is as we expect it is
-        assert_eq!(randline[..(max_len - 2)], vec![65u8; max_len - 2]);
+        assert_eq!(randline[..(max_len - 2)], vec![b'a'; max_len - 2]);
+    }
 
-        // do we end in a Windows linebreak?
-        assert_eq!(randline[(max_len - 2)..], [13u8, 10u8]);
+    #[test]
+    fn test_randline_carriage_return_line_feed() {
+        let _m = get_lock(&MTX);
+
+        // given
+        // mock rng
+        let ctx = set_up_ctx();
+
+        ctx.expect::<u8, RangeInclusive<u8>>().return_const(b'a');
+
+        // when
+        let max_len = 50;
+        let randline = randline(max_len);
+
+        // then
+        // did we get a line our length?
+        assert_eq!(randline.len(), max_len);
+
+        // do we end in a CRLF linebreak?
+        assert_eq!(randline[(max_len - 2)..], [b'\r', b'\n']);
     }
 
     #[test]
@@ -100,11 +132,7 @@ mod tests {
         let _m = get_lock(&MTX);
 
         // mock rng
-        let ctx = mock_rand::rand_in_range_context();
-
-        // set random length to requested maximum length
-        ctx.expect::<usize, RangeInclusive<usize>>()
-            .returning(|x| *x.end());
+        let ctx = set_up_ctx();
 
         let fake_randoms = [b'S', b'S', b'H', b'-'];
 
@@ -122,14 +150,11 @@ mod tests {
             .return_const(fake_randoms[3]);
 
         let max_len = 6;
-
         let randline = randline(max_len);
+
         assert_eq!(randline.len(), max_len);
 
         let xsh = [b'X', b'S', b'H', b'-'];
         assert_eq!(randline[..xsh.len()], xsh);
-
-        // do we end in a Windows linebreak?
-        assert_eq!(randline[(max_len - 2)..], [13u8, 10u8]);
     }
 }
