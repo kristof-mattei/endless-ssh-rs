@@ -33,7 +33,7 @@ fn main() -> Result<(), anyhow::Error> {
 
     let mut statistics: Statistics = Statistics::new();
 
-    let mut config = Config::new();
+    let mut config = Config::default();
 
     parse_cli(&mut config)?;
 
