@@ -21,8 +21,8 @@ pub(crate) struct Config {
     pub(crate) bind_family: IpAddr,
 }
 
-impl Config {
-    pub(crate) fn new() -> Self {
+impl Default for Config {
+    fn default() -> Self {
         Self {
             port: DEFAULT_PORT,
             delay_ms: DEFAULT_DELAY_MS,
@@ -31,7 +31,9 @@ impl Config {
             bind_family: IpAddr::V6(Ipv6Addr::UNSPECIFIED),
         }
     }
+}
 
+impl Config {
     pub(crate) fn set_port(&mut self, port: NonZeroU16) {
         self.port = port;
     }
