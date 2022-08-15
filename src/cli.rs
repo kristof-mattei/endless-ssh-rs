@@ -91,6 +91,7 @@ fn build_clap_matcher<'a>() -> Command<'a> {
                 .display_order(9)
                 .action(ArgAction::Help),
         )
+        .get_matches()
 }
 
 #[automock]
@@ -100,21 +101,19 @@ mod matches_wrap {
 
     #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn get_matches() -> clap::ArgMatches {
-        // let matches = build_clap_matcher().get_matches_from(std::env::args_os());
-        // build_clap_matcher()
-        //     .try_get_matches_from_mut(itr)
-        //     .unwrap_or_else(|e| {
-        //         drop(self);
-        //         e.exit()
-        //     })
-        //     .get_matches()
-        panic!()
+        let matches = build_clap_matcher().get_matches_from(std::env::args_os());
+        build_clap_matcher()
+            .try_get_matches_from_mut(itr)
+            .unwrap_or_else(|e| {
+                drop(self);
+                e.exit()
+            })
+            .get_matches()
     }
 }
 
 #[double]
 use self::matches_wrap as matches;
-
 pub(crate) fn parse_cli(config: &mut Config) -> Result<(), anyhow::Error> {
     let matches = matches::get_matches();
 

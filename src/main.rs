@@ -6,6 +6,7 @@ mod ffi_wrapper;
 mod handlers;
 mod line;
 mod listener;
+mod matches;
 mod statistics;
 mod time;
 

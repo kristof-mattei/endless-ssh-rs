@@ -52,10 +52,7 @@ mod tests {
 
     use mockall::lazy_static;
 
-    use crate::line::{
-        rand::{__rand_in_range, rand_in_range_context},
-        randline,
-    };
+    use crate::line::{mock_rand, randline};
 
     lazy_static! {
         static ref MTX: Mutex<()> = Mutex::new(());
@@ -73,27 +70,20 @@ mod tests {
         }
     }
 
-    fn set_up_ctx() -> __rand_in_range::Context {
-        let ctx = rand_in_range_context();
+    #[test]
+    fn test_randline() {
+        let _m = get_lock(&MTX);
+
+        // mock rng
+        let ctx = mock_rand::rand_in_range_context();
 
         // set random length to requested maximum length
         ctx.expect::<usize, RangeInclusive<usize>>()
             .returning(|x| *x.end());
 
-        ctx
-    }
+        // every byte will be 66, or 'b'
+        ctx.expect::<u8, RangeInclusive<u8>>().return_const(65u8);
 
-    #[test]
-    fn test_randline() {
-        let _m = get_lock(&MTX);
-
-        // given
-        // mock rng
-        let ctx = set_up_ctx();
-
-        ctx.expect::<u8, RangeInclusive<u8>>().return_const(b'a');
-
-        // when
         let max_len = 50;
         let randline = randline(max_len);
 
@@ -132,7 +122,11 @@ mod tests {
         let _m = get_lock(&MTX);
 
         // mock rng
-        let ctx = set_up_ctx();
+        let ctx = mock_rand::rand_in_range_context();
+
+        // set random length to requested maximum length
+        ctx.expect::<usize, RangeInclusive<usize>>()
+            .returning(|x| *x.end());
 
         let fake_randoms = [b'S', b'S', b'H', b'-'];
 

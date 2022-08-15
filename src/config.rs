@@ -22,7 +22,7 @@ pub(crate) struct Config {
 }
 
 impl Default for Config {
-    fn default() -> Self {
+    pub(crate) fn default() -> Self {
         Self {
             port: DEFAULT_PORT,
             delay_ms: DEFAULT_DELAY_MS,
