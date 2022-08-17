@@ -1,6 +1,6 @@
 use crate::ffi_wrapper::set_receive_buffer_size;
 use crate::line::randline;
-use crate::time::epochms;
+use crate::time::milliseconds_since_epoch;
 
 use tracing::event;
 use tracing::instrument;
@@ -30,7 +30,7 @@ impl Client {
 
         let c = Client {
             ipaddr: addr.ip(),
-            connect_time: epochms(),
+            connect_time: milliseconds_since_epoch(),
             send_next,
             bytes_sent: 0,
             tcp_stream: fd,
@@ -55,7 +55,7 @@ impl Client {
     // Consumes the client. Shuts down the TCP connection.
     #[instrument]
     pub(crate) fn destroy(self) -> u128 {
-        let dt = epochms() - self.connect_time;
+        let dt = milliseconds_since_epoch() - self.connect_time;
 
         event!(
             Level::INFO,

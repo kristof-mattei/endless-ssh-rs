@@ -31,6 +31,7 @@ fn set_up_handler(signum: c_int, handler: usize) -> Result<(), anyhow::Error> {
         sa_sigaction: handler,
         sa_flags: 0,
         sa_mask: unsafe { MaybeUninit::<sigset_t>::zeroed().assume_init() },
+        #[cfg(not(target_os = "macos"))]
         sa_restorer: None,
     };
 

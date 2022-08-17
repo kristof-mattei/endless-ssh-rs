@@ -52,7 +52,7 @@ mod tests {
 
     use mockall::lazy_static;
 
-    use crate::line::{rand::rand_in_range_context, randline};
+    use crate::line::{mock_rand, randline};
 
     lazy_static! {
         static ref MTX: Mutex<()> = Mutex::new(());
@@ -75,7 +75,7 @@ mod tests {
         let _m = get_lock(&MTX);
 
         // mock rng
-        let ctx = rand_in_range_context();
+        let ctx = mock_rand::rand_in_range_context();
 
         // set random length to requested maximum length
         ctx.expect::<usize, RangeInclusive<usize>>()
@@ -86,13 +86,35 @@ mod tests {
 
         let max_len = 50;
         let randline = randline(max_len);
+
+        // then
+        // did we get a line our length?
         assert_eq!(randline.len(), max_len);
 
         // since we mocked the Rng, we can make sure that the line is as we expect it is
-        assert_eq!(randline[..(max_len - 2)], vec![65u8; max_len - 2]);
+        assert_eq!(randline[..(max_len - 2)], vec![b'a'; max_len - 2]);
+    }
 
-        // do we end in a Windows linebreak?
-        assert_eq!(randline[(max_len - 2)..], [13u8, 10u8]);
+    #[test]
+    fn test_randline_carriage_return_line_feed() {
+        let _m = get_lock(&MTX);
+
+        // given
+        // mock rng
+        let ctx = set_up_ctx();
+
+        ctx.expect::<u8, RangeInclusive<u8>>().return_const(b'a');
+
+        // when
+        let max_len = 50;
+        let randline = randline(max_len);
+
+        // then
+        // did we get a line our length?
+        assert_eq!(randline.len(), max_len);
+
+        // do we end in a CRLF linebreak?
+        assert_eq!(randline[(max_len - 2)..], [b'\r', b'\n']);
     }
 
     #[test]
@@ -100,7 +122,7 @@ mod tests {
         let _m = get_lock(&MTX);
 
         // mock rng
-        let ctx = rand_in_range_context();
+        let ctx = mock_rand::rand_in_range_context();
 
         // set random length to requested maximum length
         ctx.expect::<usize, RangeInclusive<usize>>()
@@ -122,14 +144,11 @@ mod tests {
             .return_const(fake_randoms[3]);
 
         let max_len = 6;
-
         let randline = randline(max_len);
+
         assert_eq!(randline.len(), max_len);
 
         let xsh = [b'X', b'S', b'H', b'-'];
         assert_eq!(randline[..xsh.len()], xsh);
-
-        // do we end in a Windows linebreak?
-        assert_eq!(randline[(max_len - 2)..], [13u8, 10u8]);
     }
 }

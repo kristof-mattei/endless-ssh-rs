@@ -99,15 +99,10 @@ mod matches_wrap {
     use super::build_clap_matcher;
 
     #[cfg_attr(test, allow(dead_code))]
-    pub(crate) fn get_matches() -> clap::ArgMatches {
-        let matches = build_clap_matcher().get_matches_from(std::env::args_os());
-        build_clap_matcher()
-            .try_get_matches_from_mut(itr)
-            .unwrap_or_else(|e| {
-                drop(self);
-                e.exit()
-            })
-            .get_matches()
+    pub(crate) fn get_matches() -> std::result::Result<clap::ArgMatches, clap::Error> {
+        let mut matcher = build_clap_matcher();
+
+        matcher.try_get_matches_from_mut(std::env::args_os())
     }
 }
 
@@ -115,7 +110,10 @@ mod matches_wrap {
 use self::matches_wrap as matches;
 
 pub(crate) fn parse_cli(config: &mut Config) -> Result<(), anyhow::Error> {
-    let matches = matches::get_matches();
+    let matches = matches::get_matches().unwrap_or_else(|e| {
+        // drop(matcher);
+        e.exit()
+    });
 
     if Some(&true) == matches.get_one("only_4") {
         config.set_bind_family_ipv4();
@@ -213,7 +211,9 @@ mod tests {
 
         // mock
         ctx.expect().returning(move || {
-            result = build_clap_matcher().try_get_matches_from(command_line);
+            let matches = build_clap_matcher().try_get_matches_from(command_line);
+
+            matches
         });
 
         let mut config = Config::default();

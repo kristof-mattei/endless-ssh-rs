@@ -1,4 +1,4 @@
-FROM rust:1.62.1@sha256:2cd5c8517d0640bd287b2cfb4c0e62f1a8ed86174764d88280bc2a106d6835db as builder
+FROM rust:1.63.0@sha256:69b13bd25c9491a89f68207cbcce1ff6484b117595a12804f60e3aa93f02f7be as builder
 
 ENV TARGET=x86_64-unknown-linux-musl
 RUN rustup target add ${TARGET}
@@ -31,7 +31,7 @@ COPY src ./src
 RUN --mount=type=cache,target=/build/endless-ssh-rs/target \
     cargo install --path . --target ${TARGET} --root /output
 
-FROM alpine:3.16.1@sha256:7580ece7963bfa863801466c0a488f11c86f85d9988051a9f9c68cb27f6b7872
+FROM alpine:3.16.2@sha256:bc41182d7ef5ffc53a40b044e725193bc10142a1243f395ee852a8d9730fc2ad
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
