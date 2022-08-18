@@ -1,10 +1,10 @@
-use crate::config::Config;
 use anyhow::Context;
 use mockall_double::double;
 use std::num::NonZeroU16;
 use std::num::NonZeroU32;
 use std::num::NonZeroUsize;
 
+use crate::config::Config;
 use crate::config::DEFAULT_DELAY_MS;
 use crate::config::DEFAULT_MAX_CLIENTS;
 use crate::config::DEFAULT_MAX_LINE_LENGTH;
@@ -75,7 +75,7 @@ fn build_clap_matcher<'a>() -> Command<'a> {
                 .help("Listening port")
                 .display_order(6)
                 .default_value(DEFAULT_PORT_VALUE.as_str())
-                .value_parser(value_parser!(u64).range(u64::from(1u16)..=u64::from(u16::MAX))),
+                .value_parser(value_parser!(u64).range(1u64..=u64::from(u16::MAX))),
         )
         .arg(
             Arg::new("diagnostics")
@@ -100,20 +100,22 @@ mod matches_wrap {
 
     #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn get_matches() -> std::result::Result<clap::ArgMatches, clap::Error> {
-        let mut matcher = build_clap_matcher();
+        let matcher = build_clap_matcher();
 
-        matcher.try_get_matches_from_mut(std::env::args_os())
+        matcher.try_get_matches()
     }
 }
 
 #[double]
 use self::matches_wrap as matches;
 
-pub(crate) fn parse_cli(config: &mut Config) -> Result<(), anyhow::Error> {
-    let matches = matches::get_matches().unwrap_or_else(|e| {
-        // drop(matcher);
-        e.exit()
-    });
+pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
+    let matches = match matches::get_matches() {
+        Ok(am) => am,
+        Err(e) => e.exit(),
+    };
+
+    let mut config = Config::new();
 
     if Some(&true) == matches.get_one("only_4") {
         config.set_bind_family_ipv4();
@@ -152,11 +154,17 @@ pub(crate) fn parse_cli(config: &mut Config) -> Result<(), anyhow::Error> {
             let arg_usize =
                 usize::try_from(l).with_context(|| format!("Couldn't convert '{}' to usize", l))?;
 
-            let non_zero_arg = NonZeroUsize::new(arg_usize).with_context(|| {
-                format!("{} is not a valid value for max-line-length", arg_usize)
-            })?;
+            let non_zero_arg = (3..=255)
+                .contains(&arg_usize)
+                .then_some(NonZeroUsize::try_from(arg_usize).unwrap())
+                .ok_or_else(|| {
+                    anyhow::Error::msg(format!(
+                        "{} is not a valid value for max-line-length",
+                        arg_usize
+                    ))
+                })?;
 
-            config.set_max_line_length(non_zero_arg)?;
+            config.set_max_line_length(non_zero_arg);
         }
     }
 
@@ -166,7 +174,7 @@ pub(crate) fn parse_cli(config: &mut Config) -> Result<(), anyhow::Error> {
         }
     }
 
-    Ok(())
+    Ok(config)
 }
 
 #[cfg(test)]
@@ -175,10 +183,7 @@ mod tests {
 
     use mockall::lazy_static;
 
-    use crate::{
-        cli::{build_clap_matcher, mock_matches_wrap::get_matches_context, parse_cli},
-        config::Config,
-    };
+    use crate::cli::{build_clap_matcher, mock_matches_wrap::get_matches_context, parse_cli};
 
     lazy_static! {
         static ref MTX: Mutex<()> = Mutex::new(());
@@ -207,7 +212,7 @@ mod tests {
         // fake input
         let command_line = ["foo", "bar"];
 
-        let mut result = Option::None;
+        // let mut result: Option<_> = Option::None;
 
         // mock
         ctx.expect().returning(move || {
@@ -216,9 +221,7 @@ mod tests {
             matches
         });
 
-        let mut config = Config::default();
-
-        let result = parse_cli(&mut config);
+        let result = parse_cli();
 
         assert!(matches!(result, Err(_)));
     }
