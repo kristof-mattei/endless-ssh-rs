@@ -21,8 +21,8 @@ pub(crate) struct Config {
     pub(crate) bind_family: IpAddr,
 }
 
-impl Default for Config {
-    fn default() -> Self {
+impl Config {
+    pub(crate) fn new() -> Self {
         Self {
             port: DEFAULT_PORT,
             delay_ms: DEFAULT_DELAY_MS,
@@ -31,9 +31,7 @@ impl Default for Config {
             bind_family: IpAddr::V6(Ipv6Addr::UNSPECIFIED),
         }
     }
-}
 
-impl Config {
     pub(crate) fn set_port(&mut self, port: NonZeroU16) {
         self.port = port;
     }
@@ -46,16 +44,8 @@ impl Config {
         self.max_clients = max_clients;
     }
 
-    pub(crate) fn set_max_line_length(&mut self, l: NonZeroUsize) -> Result<(), anyhow::Error> {
-        if l.get() < 3 || l.get() > 255 {
-            Err(anyhow::Error::msg(format!(
-                "Invalid maximum line length: {}",
-                l.get()
-            )))
-        } else {
-            self.max_line_length = l;
-            Ok(())
-        }
+    pub(crate) fn set_max_line_length(&mut self, l: NonZeroUsize) {
+        self.max_line_length = l;
     }
 
     pub(crate) fn set_bind_family_ipv4(&mut self) {

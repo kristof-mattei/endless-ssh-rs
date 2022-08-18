@@ -12,7 +12,6 @@ mod time;
 use crate::cli::parse_cli;
 use crate::client::Client;
 use crate::clients::Clients;
-use crate::config::Config;
 use crate::handlers::set_up_handlers;
 use crate::listener::Listener;
 use crate::statistics::Statistics;
@@ -33,9 +32,7 @@ fn main() -> Result<(), anyhow::Error> {
 
     let mut statistics: Statistics = Statistics::new();
 
-    let mut config = Config::default();
-
-    parse_cli(&mut config)?;
+    let mut config = parse_cli()?;
 
     config.log();
 
