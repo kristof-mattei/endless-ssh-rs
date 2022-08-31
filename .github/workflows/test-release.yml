@@ -32,10 +32,10 @@ jobs:
           exit 1
 
       - name: Checkout
-        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # tag=v3.0.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@9fc76ff6856cd291b7d7ce307628ba4b8d7bc186
+        uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93 # tag=v3.4.1
         with:
           node-version-file: ".nvmrc"
           cache: "npm"
