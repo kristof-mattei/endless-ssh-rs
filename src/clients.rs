@@ -6,6 +6,12 @@ use crate::client::Client;
 use crate::config::Config;
 use crate::time::milliseconds_since_epoch;
 
+pub(crate) struct QueueProcessingResult {
+    pub(crate) timeout: Option<u128>,
+    pub(crate) bytes_sent: usize,
+    pub(crate) milliseconds: u128,
+}
+
 pub(crate) struct Clients(VecDeque<Client>);
 
 impl Deref for Clients {
@@ -37,39 +43,55 @@ impl Clients {
         time_spent
     }
 
-    pub(crate) fn process_queue(&mut self, config: &Config) -> (i32, usize) {
+    pub(crate) fn process_queue(&mut self, config: &Config) -> QueueProcessingResult {
         let now = milliseconds_since_epoch();
 
-        // TODO this needs to be added to statistics
-        #[allow(unused_variables)]
         let mut milliseconds = 0;
         let mut bytes_sent = 0;
+        let mut timeout = None;
 
-        while let Some(c) = self.front() {
-            if c.send_next <= now {
-                let mut c = self.pop_front().unwrap();
+        // iterate over the queue
+        while let Some(potential_client) = self.front() {
+            if potential_client.send_next <= now {
+                // client is a valid candidate to get a line sent
+                let mut client = self
+                    .pop_front()
+                    .expect("pop_front() after front() failed, universe is broken");
 
-                match c.sendline(config.max_line_length.get()) {
-                    Ok(sent) => {
-                        if let Some(s) = sent {
-                            bytes_sent += s;
+                match client.sendline(config.max_line_length.get()) {
+                    Ok(result) => {
+                        // Sometimes things happen that aren't fatal
+                        // in which case we couldn't send any results
+                        if let Some(sent) = result {
+                            bytes_sent += sent;
                         }
-                        c.send_next = now + u128::from(config.delay_ms.get());
-                        self.push_back(c);
+
+                        // in either case, we're re-scheduling this client for later
+                        client.send_next = now + u128::from(config.delay_ms.get());
+
+                        // and put it in the back
+                        self.push_back(client);
                     },
                     Err(_) => {
-                        milliseconds += c.destroy();
+                        // fatal error sending data to the client
+                        milliseconds += client.destroy();
                     },
                 }
             } else {
-                return (
-                    i32::try_from(c.send_next - now).expect("Timeout didn't fit i32"),
-                    bytes_sent,
-                );
+                // no more clients which are processable
+                // the timeout is this client (i.e. the next one coming)
+                timeout = Some(potential_client.send_next - now);
+
+                break;
             }
         }
 
-        // TODO this is not a Rust way of returning 'no timeout'
-        (-1, bytes_sent)
+        // no more clients
+        // no timeout until someone connects
+        QueueProcessingResult {
+            timeout,
+            bytes_sent,
+            milliseconds,
+        }
     }
 }

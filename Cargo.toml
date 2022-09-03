@@ -7,8 +7,8 @@ rust-version = "1.63.0"
 authors = ["Kristof Mattei"]
 description = "endless-ssh-rs"
 license-file = "LICENSE"
-categories = ["ssh", "hacker"]
-keywords = ["ssh", "hacker"]
+categories = ["ssh", "utility"]
+keywords = ["ssh", "tarpit", "script-kiddies"]
 repository = "https://github.com/kristof-mattei/endless-ssh-rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

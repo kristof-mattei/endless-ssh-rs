@@ -51,7 +51,9 @@ fn build_clap_matcher<'a>() -> Command<'a> {
                 .display_order(2)
                 .action(ArgAction::Set)
                 .default_value(DEFAULT_DELAY_MS_VALUE.as_str())
-                .value_parser(value_parser!(u64).range(u64::from(1u32)..=u64::from(u32::MAX))),
+                .value_parser(
+                    value_parser!(u64).range(u64::from(1u32)..=u64::try_from(i32::MAX).unwrap()),
+                ),
         )
         .arg(
             Arg::new("max-line-length")
@@ -110,10 +112,7 @@ mod matches_wrap {
 use self::matches_wrap as matches;
 
 pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
-    let matches = match matches::get_matches() {
-        Ok(am) => am,
-        Err(e) => e.exit(),
-    };
+    let matches = matches::get_matches()?;
 
     let mut config = Config::new();
 

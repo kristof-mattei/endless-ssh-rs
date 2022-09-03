@@ -17,6 +17,7 @@ use crate::listener::Listener;
 use crate::statistics::Statistics;
 use crate::time::milliseconds_since_epoch;
 
+use listener::WaitFor;
 use tracing::event;
 use tracing::Level;
 
@@ -32,7 +33,17 @@ fn main() -> Result<(), anyhow::Error> {
 
     let mut statistics: Statistics = Statistics::new();
 
-    let mut config = parse_cli()?;
+    let mut config = parse_cli().map_err(|e| {
+        // this prints the error in color and exits
+        // can't do anything else until
+        // https://github.com/clap-rs/clap/issues/2914
+        // is merged in
+        if let Some(clap_error) = e.downcast_ref::<clap::error::Error>() {
+            clap_error.exit();
+        }
+
+        e
+    })?;
 
     config.log();
 
@@ -51,9 +62,15 @@ fn main() -> Result<(), anyhow::Error> {
         }
 
         // Enqueue clients that are due for another message
-        let (timeout, bytes_sent) = clients.process_queue(&config);
+        let queue_processing_result = clients.process_queue(&config);
 
-        statistics.bytes_sent += bytes_sent;
+        statistics.bytes_sent += queue_processing_result.bytes_sent;
+        statistics.milliseconds += queue_processing_result.milliseconds;
+
+        let timeout = match queue_processing_result.timeout {
+            Some(t) => i32::try_from(t).unwrap_or(i32::MAX).into(),
+            None => WaitFor::Infinite,
+        };
 
         if clients.len() < config.max_clients.get() && listener.wait_poll(timeout)? {
             let accept = listener.accept();
@@ -75,6 +92,7 @@ fn main() -> Result<(), anyhow::Error> {
                             );
 
                             drop(socket);
+
                             // can't do anything anymore
                             continue;
                         },
