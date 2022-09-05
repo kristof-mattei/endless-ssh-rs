@@ -28,13 +28,6 @@ static RUNNING: AtomicBool = AtomicBool::new(true);
 static DUMPSTATS: AtomicBool = AtomicBool::new(false);
 
 fn main() -> Result<(), anyhow::Error> {
-    // let formatter = format::debug_fn(|writer, field, value| {
-    //     let r = write!(writer, "{}: {:?}", field, value);
-    //     r
-    // })
-    // .delimited(" rooo ");
-
-    // tracing_subscriber::fmt().fmt_fields(formatter).init();
     {
         let builder = tracing_subscriber::fmt::Subscriber::builder();
 
