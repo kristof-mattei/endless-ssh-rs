@@ -1,3 +1,18 @@
+use std::{
+    os::unix::prelude::AsRawFd,
+    sync::atomic::{AtomicBool, Ordering},
+};
+
+use tracing::{event, Level};
+use tracing_subscriber::{prelude::*, EnvFilter};
+
+use crate::cli::parse_cli;
+use crate::clients::Clients;
+use crate::handlers::set_up_handlers;
+use crate::listener::Listener;
+use crate::statistics::Statistics;
+use crate::{client::Client, time::duration_since_epoch};
+
 mod cli;
 mod client;
 mod clients;
@@ -9,27 +24,20 @@ mod listener;
 mod statistics;
 mod time;
 
-use crate::cli::parse_cli;
-use crate::client::Client;
-use crate::clients::Clients;
-use crate::handlers::set_up_handlers;
-use crate::listener::Listener;
-use crate::statistics::Statistics;
-use crate::time::milliseconds_since_epoch;
-
-use listener::WaitFor;
-use tracing::event;
-use tracing::Level;
-
-use std::os::unix::io::AsRawFd;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
-
 static RUNNING: AtomicBool = AtomicBool::new(true);
 static DUMPSTATS: AtomicBool = AtomicBool::new(false);
 
 fn main() -> Result<(), anyhow::Error> {
-    tracing_subscriber::fmt::init();
+    {
+        let builder = tracing_subscriber::fmt::Subscriber::builder();
+
+        let builder = builder.with_env_filter(EnvFilter::from_default_env());
+
+        let subscriber = builder.finish();
+
+        subscriber.try_init()
+    }
+    .expect("Unable to install global subscriber");
 
     let mut statistics: Statistics = Statistics::new();
 
@@ -57,7 +65,7 @@ fn main() -> Result<(), anyhow::Error> {
     while RUNNING.load(Ordering::SeqCst) {
         if DUMPSTATS.load(Ordering::SeqCst) {
             // print stats requested (SIGUSR1)
-            statistics.log_totals(clients.make_contiguous());
+            statistics.log_totals(&(*clients));
             DUMPSTATS.store(false, Ordering::SeqCst);
         }
 
@@ -65,12 +73,9 @@ fn main() -> Result<(), anyhow::Error> {
         let queue_processing_result = clients.process_queue(&config);
 
         statistics.bytes_sent += queue_processing_result.bytes_sent;
-        statistics.milliseconds += queue_processing_result.milliseconds;
+        statistics.milliseconds += queue_processing_result.time_spent;
 
-        let timeout = match queue_processing_result.timeout {
-            Some(t) => i32::try_from(t).unwrap_or(i32::MAX).into(),
-            None => WaitFor::Infinite,
-        };
+        let timeout = queue_processing_result.wait_until.into();
 
         if clients.len() < config.max_clients.get() && listener.wait_poll(timeout)? {
             let accept = listener.accept();
@@ -81,7 +86,7 @@ fn main() -> Result<(), anyhow::Error> {
 
             match accept {
                 Ok((socket, addr)) => {
-                    let send_next = milliseconds_since_epoch() + u128::from(config.delay_ms.get());
+                    let send_next = duration_since_epoch() + config.delay;
                     match socket.set_nonblocking(true) {
                         Ok(_) => {},
                         Err(e) => {
@@ -139,10 +144,12 @@ fn main() -> Result<(), anyhow::Error> {
                         event!(Level::INFO, ?e, "Unable to accept new connection");
                     },
                     _ => {
-                        let wrapped =
+                        let error =
                             anyhow::Error::new(e).context("Unable to accept new connection");
-                        event!(Level::ERROR, ?wrapped);
-                        return Err(wrapped);
+
+                        event!(Level::ERROR, ?error);
+
+                        return Err(error);
                     },
                 },
             }

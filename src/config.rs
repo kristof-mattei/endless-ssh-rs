@@ -4,6 +4,7 @@ use std::net::Ipv6Addr;
 use std::num::NonZeroU16;
 use std::num::NonZeroU32;
 use std::num::NonZeroUsize;
+use std::time::Duration;
 
 use tracing::event;
 use tracing::Level;
@@ -15,7 +16,7 @@ pub(crate) const DEFAULT_MAX_CLIENTS: NonZeroUsize = unsafe { NonZeroUsize::new_
 
 pub(crate) struct Config {
     pub(crate) port: NonZeroU16,
-    pub(crate) delay_ms: NonZeroU32,
+    pub(crate) delay: Duration,
     pub(crate) max_line_length: NonZeroUsize,
     pub(crate) max_clients: NonZeroUsize,
     pub(crate) bind_family: IpAddr,
@@ -25,7 +26,7 @@ impl Config {
     pub(crate) fn new() -> Self {
         Self {
             port: DEFAULT_PORT,
-            delay_ms: DEFAULT_DELAY_MS,
+            delay: Duration::from_millis(DEFAULT_DELAY_MS.get().into()),
             max_line_length: DEFAULT_MAX_LINE_LENGTH,
             max_clients: DEFAULT_MAX_CLIENTS,
             bind_family: IpAddr::V6(Ipv6Addr::UNSPECIFIED),
@@ -37,7 +38,7 @@ impl Config {
     }
 
     pub(crate) fn set_delay(&mut self, delay: NonZeroU32) {
-        self.delay_ms = delay;
+        self.delay = Duration::from_millis(u64::from(delay.get()));
     }
 
     pub(crate) fn set_max_clients(&mut self, max_clients: NonZeroUsize) {
@@ -58,7 +59,7 @@ impl Config {
 
     pub(crate) fn log(&self) {
         event!(Level::INFO, "Port: {}", self.port);
-        event!(Level::INFO, "Delay: {}ms", self.delay_ms);
+        event!(Level::INFO, "Delay: {}ms", self.delay.as_millis());
         event!(Level::INFO, "MaxLineLength: {}", self.max_line_length);
         event!(Level::INFO, "MaxClients: {}", self.max_clients);
         let bind_family_description = match self.bind_family {

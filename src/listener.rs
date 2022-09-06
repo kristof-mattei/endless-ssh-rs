@@ -21,49 +21,34 @@ use std::net::TcpListener;
 use std::ops::Deref;
 use std::os::unix::prelude::AsRawFd;
 use std::ptr::addr_of_mut;
+use std::time::Duration;
 
 #[derive(Debug)]
-pub(crate) enum WaitFor {
+pub(crate) enum Timeout {
     Infinite,
-    Milliseconds(i32),
+    Duration(Duration),
 }
 
-impl WaitFor {
-    pub(crate) fn new(milliseconds: i32) -> WaitFor {
-        if milliseconds < 0 {
-            WaitFor::Infinite
-        } else {
-            WaitFor::Milliseconds(milliseconds)
+impl Timeout {
+    pub(crate) fn as_c_timeout(&self) -> i32 {
+        match self {
+            Timeout::Infinite => -1,
+            Timeout::Duration(m) => i32::try_from(m.as_millis()).unwrap_or(i32::MAX),
         }
     }
 }
 
-impl Display for WaitFor {
+impl Display for Timeout {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}", i32::from(self)))
+        f.write_fmt(format_args!("{}", self.as_c_timeout()))
     }
 }
 
-impl From<i32> for WaitFor {
-    fn from(milliseconds: i32) -> Self {
-        WaitFor::new(milliseconds)
-    }
-}
-
-impl From<&WaitFor> for i32 {
-    fn from(wait_for: &WaitFor) -> Self {
-        match wait_for {
-            WaitFor::Infinite => -1,
-            WaitFor::Milliseconds(m) => *m,
-        }
-    }
-}
-
-impl From<WaitFor> for i32 {
-    fn from(wait_for: WaitFor) -> Self {
-        match wait_for {
-            WaitFor::Infinite => -1,
-            WaitFor::Milliseconds(m) => m,
+impl From<Option<Duration>> for Timeout {
+    fn from(duration: Option<Duration>) -> Self {
+        match duration {
+            None => Timeout::Infinite,
+            Some(d) => Timeout::Duration(d),
         }
     }
 }
@@ -95,7 +80,7 @@ impl Listener {
 
         listener
             .set_nonblocking(true)
-            .with_context(|| "Failed to set listener to non-blocking")?;
+            .context("Failed to set listener to non-blocking")?;
 
         event!(Level::DEBUG, ?listener, "Bound and listening!");
 
@@ -103,7 +88,7 @@ impl Listener {
     }
 
     #[instrument]
-    pub(crate) fn wait_poll(&self, timeout: WaitFor) -> Result<bool, anyhow::Error> {
+    pub(crate) fn wait_poll(&self, timeout: Timeout) -> Result<bool, anyhow::Error> {
         // Wait for next event
         let mut fds: pollfd = pollfd {
             fd: self.0.as_raw_fd(),
@@ -113,7 +98,7 @@ impl Listener {
 
         event!(Level::DEBUG, "poll({}, {})", 1, timeout);
 
-        let r = unsafe { poll(addr_of_mut!(fds), 1, timeout.into()) };
+        let r = unsafe { poll(addr_of_mut!(fds), 1, timeout.as_c_timeout()) };
 
         if r == -1 {
             let last_error = Error::last_os_error();
