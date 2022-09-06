@@ -21,19 +21,27 @@ use std::net::TcpListener;
 use std::ops::Deref;
 use std::os::unix::prelude::AsRawFd;
 use std::ptr::addr_of_mut;
-use std::time::Duration;
+use time::Duration;
 
-#[derive(Debug)]
 pub(crate) enum Timeout {
     Infinite,
     Duration(Duration),
+}
+
+impl std::fmt::Debug for Timeout {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Infinite => write!(f, "Infinite"),
+            Self::Duration(arg0) => write!(f, "{}", arg0),
+        }
+    }
 }
 
 impl Timeout {
     pub(crate) fn as_c_timeout(&self) -> i32 {
         match self {
             Timeout::Infinite => -1,
-            Timeout::Duration(m) => i32::try_from(m.as_millis()).unwrap_or(i32::MAX),
+            Timeout::Duration(m) => i32::try_from(m.whole_milliseconds()).unwrap_or(i32::MAX),
         }
     }
 }
@@ -82,12 +90,12 @@ impl Listener {
             .set_nonblocking(true)
             .context("Failed to set listener to non-blocking")?;
 
-        event!(Level::DEBUG, ?listener, "Bound and listening!");
+        event!(Level::DEBUG, message = "Bound and listening!", ?listener);
 
         Ok(Self(listener))
     }
 
-    #[instrument]
+    #[instrument(skip(self), fields(self = ?self.0, timeout = ?timeout))]
     pub(crate) fn wait_poll(&self, timeout: Timeout) -> Result<bool, anyhow::Error> {
         // Wait for next event
         let mut fds: pollfd = pollfd {
@@ -96,7 +104,7 @@ impl Listener {
             revents: 0,
         };
 
-        event!(Level::DEBUG, "poll({}, {})", 1, timeout);
+        event!(Level::DEBUG, message = "Waiting...");
 
         let r = unsafe { poll(addr_of_mut!(fds), 1, timeout.as_c_timeout()) };
 
@@ -118,10 +126,10 @@ impl Listener {
         }
 
         if fds.revents & POLLIN == POLLIN {
-            event!(Level::INFO, "Done polling because of incoming data");
+            event!(Level::INFO, message = "Incoming client");
             Ok(true)
         } else {
-            event!(Level::INFO, "Done polling because of timeout expiration");
+            event!(Level::INFO, message = "Timeout expired, processing clients");
             Ok(false)
         }
     }
