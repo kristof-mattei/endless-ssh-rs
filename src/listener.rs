@@ -104,7 +104,7 @@ impl Listener {
             revents: 0,
         };
 
-        event!(Level::DEBUG, message = "Waiting...");
+        event!(Level::DEBUG, message = "Polling socket...");
 
         let r = unsafe { poll(addr_of_mut!(fds), 1, timeout.as_c_timeout()) };
 
@@ -126,10 +126,16 @@ impl Listener {
         }
 
         if fds.revents & POLLIN == POLLIN {
-            event!(Level::INFO, message = "Incoming client");
+            event!(
+                Level::INFO,
+                message = "Ending poll because of incoming connection"
+            );
             Ok(true)
         } else {
-            event!(Level::INFO, message = "Timeout expired, processing clients");
+            event!(
+                Level::INFO,
+                message = "Ending poll because of timeout expiraton"
+            );
             Ok(false)
         }
     }

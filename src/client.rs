@@ -59,7 +59,7 @@ impl Client {
     pub(crate) fn destroy(self) -> Duration {
         let time_spent = OffsetDateTime::now_utc() - self.connect_time;
 
-        event!(Level::INFO, message = "Disconnecting client...", time_spent = ?time_spent.whole_seconds());
+        event!(Level::INFO, message = "Disconnecting client...", time_spent = %time_spent);
 
         if let Err(e) = self.tcp_stream.shutdown(Shutdown::Both) {
             // if we had an error sending data then the shutdown will not work
