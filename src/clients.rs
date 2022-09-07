@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
 use time::{Duration, OffsetDateTime};
+use tracing::{event, Level};
 
 use crate::client::Client;
 use crate::config::Config;
@@ -53,6 +54,8 @@ impl Clients {
         let mut milliseconds = Duration::ZERO;
         let mut bytes_sent = 0;
         let mut timeout = None;
+
+        event!(Level::INFO, message = "Processing clients");
 
         // iterate over the queue
         while let Some(potential_client) = self.clients.front() {
