@@ -63,8 +63,8 @@ impl Config {
         event!(Level::INFO, "MaxLineLength: {}", self.max_line_length);
         event!(Level::INFO, "MaxClients: {}", self.max_clients);
         let bind_family_description = match self.bind_family {
-            IpAddr::V6(_) => "Ipv6 Only",
-            IpAddr::V4(_) => "Ipv4 Only",
+            IpAddr::V6(_) => "Ipv4 + 6",
+            IpAddr::V4(_) => "Ipv4 only",
         };
         event!(Level::INFO, "BindFamily: {}", bind_family_description);
     }
