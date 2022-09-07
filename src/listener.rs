@@ -96,7 +96,11 @@ impl Listener {
     }
 
     #[instrument(skip(self), fields(self = ?self.0, timeout = ?timeout))]
-    pub(crate) fn wait_poll(&self, timeout: Timeout) -> Result<bool, anyhow::Error> {
+    pub(crate) fn wait_poll(
+        &self,
+        can_accept_more_clients: bool,
+        timeout: Timeout,
+    ) -> Result<bool, anyhow::Error> {
         // Wait for next event
         let mut fds: pollfd = pollfd {
             fd: self.0.as_raw_fd(),
@@ -104,9 +108,22 @@ impl Listener {
             revents: 0,
         };
 
-        event!(Level::DEBUG, message = "Polling socket...");
+        if can_accept_more_clients {
+            event!(Level::DEBUG, message = "Polling socket...");
+        } else {
+            event!(
+                Level::DEBUG,
+                message = "Maximum clients reached, just waiting until timeout expires"
+            );
+        }
 
-        let r = unsafe { poll(addr_of_mut!(fds), 1, timeout.as_c_timeout()) };
+        let r = unsafe {
+            poll(
+                addr_of_mut!(fds),
+                if can_accept_more_clients { 1 } else { 0 },
+                timeout.as_c_timeout(),
+            )
+        };
 
         if r == -1 {
             let last_error = Error::last_os_error();

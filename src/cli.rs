@@ -47,6 +47,7 @@ fn build_clap_matcher<'a>() -> Command<'a> {
         .arg(
             Arg::new("delay")
                 .short('d')
+                .long("delay")
                 .help("Message millisecond delay")
                 .display_order(2)
                 .action(ArgAction::Set)
@@ -58,6 +59,7 @@ fn build_clap_matcher<'a>() -> Command<'a> {
         .arg(
             Arg::new("max-line-length")
                 .short('l')
+                .long("max-line-length")
                 .help("Maximum banner line length (3-255)")
                 .display_order(4)
                 .default_value(DEFAULT_MAX_LINE_LENGTH_VALUE.as_str())
@@ -66,6 +68,7 @@ fn build_clap_matcher<'a>() -> Command<'a> {
         .arg(
             Arg::new("max-clients")
                 .short('m')
+                .long("max-clients")
                 .help("Maximum number of clients")
                 .display_order(5)
                 .default_value(DEFAULT_MAX_CLIENTS_VALUE.as_str())
@@ -74,6 +77,7 @@ fn build_clap_matcher<'a>() -> Command<'a> {
         .arg(
             Arg::new("port")
                 .short('p')
+                .long("port")
                 .help("Listening port")
                 .display_order(6)
                 .default_value(DEFAULT_PORT_VALUE.as_str())
@@ -89,6 +93,7 @@ fn build_clap_matcher<'a>() -> Command<'a> {
         .arg(
             Arg::new("help")
                 .short('h')
+                .long("help")
                 .help("Print this help message and exit")
                 .display_order(9)
                 .action(ArgAction::Help),
@@ -153,23 +158,30 @@ pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
             let arg_usize =
                 usize::try_from(l).with_context(|| format!("Couldn't convert '{}' to usize", l))?;
 
-            let non_zero_arg = (3..=255)
-                .contains(&arg_usize)
-                .then_some(NonZeroUsize::try_from(arg_usize).unwrap())
-                .ok_or_else(|| {
-                    anyhow::Error::msg(format!(
-                        "{} is not a valid value for max-line-length",
-                        arg_usize
-                    ))
-                })?;
+            let non_zero_arg = NonZeroUsize::try_from(arg_usize).map_err(|_| {
+                anyhow::Error::msg(format!(
+                    "{} is not a valid value for max-line-length",
+                    arg_usize
+                ))
+            })?;
 
             config.set_max_line_length(non_zero_arg);
         }
     }
 
     if Some(clap::ValueSource::CommandLine) == matches.value_source("max-clients") {
-        if let Some(&c) = matches.get_one::<NonZeroUsize>("max-clients") {
-            config.set_max_clients(c);
+        if let Some(&c) = matches.get_one::<u64>("max-clients") {
+            let arg_usize =
+                usize::try_from(c).with_context(|| format!("Couldn't convert '{}' to usize", c))?;
+
+            let non_zero_arg = NonZeroUsize::try_from(arg_usize).map_err(|_| {
+                anyhow::Error::msg(format!(
+                    "{} is not a valid value for max-clients",
+                    arg_usize
+                ))
+            })?;
+
+            config.set_max_clients(non_zero_arg);
         }
     }
 
