@@ -26,7 +26,7 @@ mockall_double = "0.3.0"
 rand = "0.8.5"
 time = { version = "0.3.14", features = ["formatting"] }
 tracing = "0.1.36"
-tracing-subscriber = { version = "0.3.15", features = ["time", "env-filter"] }
+tracing-subscriber = { version = "0.3.15", features = ["time"] }
 # We compile the Docker container with musl to get a static library. Smaller, faster.
 # BUT that means that we need to include openssl
 # Documentation on the syntax:

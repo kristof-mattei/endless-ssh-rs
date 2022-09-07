@@ -66,7 +66,7 @@ fn main() -> Result<(), anyhow::Error> {
 
         let timeout = queue_processing_result.wait_until.into();
 
-        if clients.len() < config.max_clients.get() && listener.wait_poll(timeout)? {
+        if listener.wait_poll(clients.len() < config.max_clients.get(), timeout)? {
             event!(
                 Level::DEBUG,
                 message = "Trying to accept incoming connection"
