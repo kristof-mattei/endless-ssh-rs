@@ -1,7 +1,10 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::time::OffsetDateTime;
+use tracing::metadata::LevelFilter;
 use tracing::{event, Level};
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::EnvFilter;
 
 use crate::cli::parse_cli;
 use crate::client::Client;
@@ -26,7 +29,14 @@ static RUNNING: AtomicBool = AtomicBool::new(true);
 static DUMPSTATS: AtomicBool = AtomicBool::new(false);
 
 fn main() -> Result<(), anyhow::Error> {
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt::Subscriber::builder()
+        .with_env_filter(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::WARN.into())
+                .from_env_lossy(),
+        )
+        .finish()
+        .init();
 
     let mut statistics: Statistics = Statistics::new();
 

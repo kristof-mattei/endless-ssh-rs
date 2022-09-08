@@ -84,13 +84,6 @@ fn build_clap_matcher<'a>() -> Command<'a> {
                 .value_parser(value_parser!(u64).range(u64::from(1u16)..=u64::from(u16::MAX))),
         )
         .arg(
-            Arg::new("diagnostics")
-                .short('v')
-                .help("Print diagnostics to standard output (repeatable)")
-                .display_order(7)
-                .action(ArgAction::Count),
-        )
-        .arg(
             Arg::new("help")
                 .short('h')
                 .long("help")
