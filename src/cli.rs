@@ -178,7 +178,6 @@ pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
         }
     }
 
-
     Ok(config)
 }
 
