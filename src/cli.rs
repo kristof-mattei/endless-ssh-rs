@@ -1,4 +1,5 @@
 use anyhow::Context;
+use clap::parser::ValueSource;
 use mockall_double::double;
 use std::num::NonZeroU16;
 use std::num::NonZeroU32;
@@ -25,7 +26,7 @@ lazy_static! {
     static ref DEFAULT_MAX_LINE_LENGTH_VALUE: String = DEFAULT_MAX_LINE_LENGTH.to_string();
 }
 
-fn build_clap_matcher<'a>() -> Command<'a> {
+fn build_clap_matcher() -> Command {
     command!()
         .disable_help_flag(true)
         .arg(
@@ -123,7 +124,7 @@ pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
         config.set_bind_family_ipv6();
     }
 
-    if Some(clap::ValueSource::CommandLine) == matches.value_source("delay") {
+    if Some(ValueSource::CommandLine) == matches.value_source("delay") {
         let delay_match: Option<&u64> = matches.get_one("delay");
         if let Some(&d) = delay_match {
             let arg_u32 =
@@ -136,7 +137,7 @@ pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
         }
     }
 
-    if Some(clap::ValueSource::CommandLine) == matches.value_source("port") {
+    if Some(ValueSource::CommandLine) == matches.value_source("port") {
         let port_match: Option<&u64> = matches.get_one("port");
         if let Some(&p) = port_match {
             let arg_u16 =
@@ -149,7 +150,7 @@ pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
         }
     }
 
-    if Some(clap::ValueSource::CommandLine) == matches.value_source("max-line-length") {
+    if Some(ValueSource::CommandLine) == matches.value_source("max-line-length") {
         if let Some(&l) = matches.get_one::<u64>("max-line-length") {
             let arg_usize =
                 usize::try_from(l).with_context(|| format!("Couldn't convert '{}' to usize", l))?;
@@ -165,7 +166,7 @@ pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
         }
     }
 
-    if Some(clap::ValueSource::CommandLine) == matches.value_source("max-clients") {
+    if Some(ValueSource::CommandLine) == matches.value_source("max-clients") {
         if let Some(&c) = matches.get_one::<u64>("max-clients") {
             let arg_usize =
                 usize::try_from(c).with_context(|| format!("Couldn't convert '{}' to usize", c))?;
@@ -222,11 +223,8 @@ mod tests {
         // let mut result: Option<_> = Option::None;
 
         // mock
-        ctx.expect().returning(move || {
-            let matches = build_clap_matcher().try_get_matches_from(command_line);
-
-            matches
-        });
+        ctx.expect()
+            .returning(move || build_clap_matcher().try_get_matches_from(command_line));
 
         // let result = parse_cli();
 
