@@ -82,6 +82,7 @@ impl Listener {
             },
             IpAddr::V6(a) => {
                 let sa: SocketAddrV6 = SocketAddrV6::new(a, config.port.get(), 0, 0);
+
                 TcpListener::bind(sa).unwrap()
             },
         };
