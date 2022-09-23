@@ -99,6 +99,9 @@ mod matches_wrap {
     use super::build_clap_matcher;
 
     #[cfg_attr(test, allow(dead_code))]
+    // delete when https://github.com/rust-lang/rust-clippy/pull/9486
+    // is merged in
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn get_matches() -> std::result::Result<clap::ArgMatches, clap::Error> {
         let matcher = build_clap_matcher();
 
