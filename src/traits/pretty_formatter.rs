@@ -1,5 +1,6 @@
 use std::fmt::{Debug, Display};
 
+#[allow(unused)]
 pub(crate) fn pretty_format<T, E>(
     t: &Result<T, E>,
     f: &mut std::fmt::Formatter<'_>,

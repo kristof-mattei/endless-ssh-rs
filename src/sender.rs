@@ -3,15 +3,10 @@ use std::{
     net::TcpStream,
 };
 
-use tracing::{event, instrument, Level};
+use tracing::{event, Level};
 
-use crate::{
-    line::randline,
-    traits::{display_as_debug::PrettyPrinterWrapper, pretty_formatter::pretty_format},
-};
+use crate::line::randline;
 
-/// Writes line of maximum `max_line_length` to a given `tcp_stream`.
-#[instrument(skip(tcp_stream), fields(tcp_stream.peer = %tcp_stream.peer_addr().pretty_print(pretty_format), max_line_length = max_line_length))]
 pub(crate) fn sendline(
     tcp_stream: &mut TcpStream,
     max_line_length: usize,

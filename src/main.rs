@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::time::OffsetDateTime;
+use anyhow::Context;
 use tracing::metadata::LevelFilter;
 use tracing::{event, Level};
 use tracing_subscriber::util::SubscriberInitExt;
@@ -19,6 +20,7 @@ mod clients;
 mod config;
 mod ffi_wrapper;
 mod handlers;
+mod helpers;
 mod line;
 mod listener;
 mod sender;
@@ -28,11 +30,15 @@ mod traits;
 static RUNNING: AtomicBool = AtomicBool::new(true);
 static DUMPSTATS: AtomicBool = AtomicBool::new(false);
 
-fn main() -> Result<(), anyhow::Error> {
+fn main() {
+    let _t = t();
+}
+
+fn t() -> Result<(), anyhow::Error> {
     tracing_subscriber::fmt::Subscriber::builder()
         .with_env_filter(
             EnvFilter::builder()
-                .with_default_directive(LevelFilter::WARN.into())
+                .with_default_directive(LevelFilter::INFO.into())
                 .from_env_lossy(),
         )
         .finish()
@@ -89,21 +95,19 @@ fn main() -> Result<(), anyhow::Error> {
             match accept {
                 Ok((socket, addr)) => {
                     let send_next = OffsetDateTime::now_utc() + config.delay;
-                    match socket.set_nonblocking(true) {
+                    match socket.set_nonblocking(true).with_context(|| {
+                        "Failed to set incoming connect to non-blocking mode, discarding"
+                    }) {
                         Ok(_) => {},
                         Err(e) => {
-                            event!(
-                                Level::WARN,
-                                message = "Failed to set incoming connect to non-blocking mode, discarding",
-                                ?e,
-                            );
+                            event!(Level::WARN, ?e,);
 
                             // can't do anything anymore
                             continue;
                         },
                     }
 
-                    let client = Client::new(socket, addr, send_next);
+                    let client = Client::initialize(socket, addr, send_next);
 
                     clients.push_back(client);
 
@@ -140,12 +144,11 @@ fn main() -> Result<(), anyhow::Error> {
                         event!(Level::INFO, message = "Unable to accept new connection", ?e);
                     },
                     _ => {
-                        let error =
-                            anyhow::Error::new(e).context("Unable to accept new connection");
-
-                        event!(Level::ERROR, ?error);
-
-                        return Err(error);
+                        return Err(wrap_and_report!(
+                            Level::ERROR,
+                            e,
+                            "Unable to accept new connection"
+                        ));
                     },
                 },
             }

@@ -1,3 +1,4 @@
+use crate::wrap_and_report;
 use crate::DUMPSTATS;
 use crate::RUNNING;
 use libc::c_int;
@@ -36,12 +37,11 @@ fn set_up_handler(signum: c_int, handler: usize) -> Result<(), anyhow::Error> {
     };
 
     if unsafe { sigaction(signum, &sa, null_mut()) } == -1 {
-        let last_os_error =
-            anyhow::Error::new(Error::last_os_error()).context("Failure to install signal handler");
-
-        event!(Level::ERROR, ?last_os_error);
-
-        return Err(last_os_error);
+        return Err(wrap_and_report!(
+            Level::ERROR,
+            Error::last_os_error(),
+            "Failure to install signal handler"
+        ));
     }
 
     Ok(())

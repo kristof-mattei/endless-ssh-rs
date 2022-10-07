@@ -1,5 +1,6 @@
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
+#[allow(unused)]
 pub(crate) fn offset_datetime_formatter(
     offset_datetime: &OffsetDateTime,
     f: &mut std::fmt::Formatter<'_>,
