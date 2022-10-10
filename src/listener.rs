@@ -1,4 +1,6 @@
+use crate::config::BindFamily;
 use crate::config::Config;
+use crate::wrap_and_report;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -14,7 +16,9 @@ use tracing::Level;
 use std::fmt::Display;
 use std::io::Error;
 use std::io::ErrorKind;
-use std::net::IpAddr;
+use std::net::Ipv4Addr;
+use std::net::Ipv6Addr;
+use std::net::SocketAddr;
 use std::net::SocketAddrV4;
 use std::net::SocketAddrV6;
 use std::net::TcpListener;
@@ -74,18 +78,22 @@ impl Deref for Listener {
 
 impl Listener {
     pub(crate) fn start_listening(config: &Config) -> Result<Self, anyhow::Error> {
-        let listener = match config.bind_family {
-            IpAddr::V4(a) => {
-                let sa: SocketAddrV4 = SocketAddrV4::new(a, config.port.get());
-
-                TcpListener::bind(sa).unwrap()
+        let sa = match config.bind_family {
+            BindFamily::Ipv4 => {
+                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, config.port.get()))
             },
-            IpAddr::V6(a) => {
-                let sa: SocketAddrV6 = SocketAddrV6::new(a, config.port.get(), 0, 0);
-
-                TcpListener::bind(sa).unwrap()
-            },
+            BindFamily::Ipv6 | BindFamily::DualStack => SocketAddr::V6(SocketAddrV6::new(
+                Ipv6Addr::UNSPECIFIED,
+                config.port.get(),
+                0,
+                0,
+            )),
         };
+
+        // TODO BindFamily::Ipv6 is not respected. Dual stack / IPv6 only are
+        // set by /proc/sys/net/ipv6/bindv6only
+
+        let listener = TcpListener::bind(sa).unwrap();
 
         listener
             .set_nonblocking(true)
@@ -96,7 +104,7 @@ impl Listener {
         Ok(Self(listener))
     }
 
-    #[instrument(skip(self), fields(self = ?self.0, timeout = ?timeout))]
+    #[instrument()]
     pub(crate) fn wait_poll(
         &self,
         can_accept_more_clients: bool,
@@ -110,7 +118,11 @@ impl Listener {
         };
 
         if can_accept_more_clients {
-            event!(Level::DEBUG, message = "Polling socket...");
+            event!(
+                Level::DEBUG,
+                message = "Waiting for data on socket",
+                ?timeout
+            );
         } else {
             event!(
                 Level::DEBUG,
@@ -128,30 +140,29 @@ impl Listener {
 
         if r == -1 {
             let last_error = Error::last_os_error();
-            // poll & ppoll's EINTR cannot be avoided by using SA_RESTART
-            // see https://stackoverflow.com/a/48553220
+            // // poll & ppoll's EINTR cannot be avoided by using SA_RESTART
+            // // see https://stackoverflow.com/a/48553220
             if ErrorKind::Interrupted == last_error.kind() {
                 event!(Level::DEBUG, "Poll interrupted, but that's ok");
                 return Ok(false);
             }
 
-            let wrapped = anyhow::Error::new(last_error)
-                .context("Something went wrong during polling / waiting for the next call");
-
-            event!(Level::ERROR, ?wrapped);
-
-            return Err(wrapped);
+            return Err(wrap_and_report!(
+                Level::ERROR,
+                last_error,
+                "Something went wrong during polling / waiting for the next call"
+            ));
         }
 
         if fds.revents & POLLIN == POLLIN {
             event!(
-                Level::INFO,
+                Level::DEBUG,
                 message = "Ending poll because of incoming connection"
             );
             Ok(true)
         } else {
             event!(
-                Level::INFO,
+                Level::DEBUG,
                 message = "Ending poll because of timeout expiraton"
             );
             Ok(false)

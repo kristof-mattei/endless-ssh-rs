@@ -1,6 +1,4 @@
 use crate::ffi_wrapper::set_receive_buffer_size;
-use crate::traits::display_as_debug::PrettyPrinterWrapper;
-use crate::traits::offset_datetime_formatter::offset_datetime_formatter;
 
 use time::Duration;
 use time::OffsetDateTime;
@@ -13,7 +11,6 @@ use std::net::Shutdown;
 use std::net::SocketAddr;
 use std::net::TcpStream;
 
-#[derive(Debug)]
 pub(crate) struct Client {
     pub(crate) connect_time: OffsetDateTime,
     pub(crate) send_next: OffsetDateTime,
@@ -22,9 +19,21 @@ pub(crate) struct Client {
     pub(crate) tcp_stream: TcpStream,
 }
 
+impl std::fmt::Debug for Client {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Client")
+            .field("connect_time", &self.connect_time)
+            .field("send_next", &self.send_next)
+            .field("bytes_sent", &self.bytes_sent)
+            .field("addr", &self.addr)
+            // .field("tcp_stream", &self.tcp_stream)
+            .finish()
+    }
+}
+
 impl Client {
-    #[instrument(name = "client_new", fields(stream, start_sending_at = start_sending_at.to_string()))]
-    pub(crate) fn new(
+    #[instrument()]
+    pub(crate) fn initialize(
         stream: TcpStream,
         addr: SocketAddr,
         start_sending_at: OffsetDateTime,
@@ -55,7 +64,7 @@ impl Client {
     }
 
     /// Destroys self returning time spent annoying this client
-    #[instrument(skip(self), fields(self.connect_time = %&self.connect_time.pretty_print(offset_datetime_formatter), peer = %self.addr))]
+    #[instrument()]
     pub(crate) fn destroy(self) -> Duration {
         let time_spent = OffsetDateTime::now_utc() - self.connect_time;
 

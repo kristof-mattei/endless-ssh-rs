@@ -66,6 +66,7 @@ impl Clients {
                     .pop_front()
                     .expect("pop_front() after front() failed, universe is broken");
 
+                event!(Level::DEBUG, message = "Sending data to client", ?client);
                 match sender::sendline(&mut client.tcp_stream, config.max_line_length.get()) {
                     Ok(result) => {
                         // Sometimes things happen that aren't fatal
