@@ -1,42 +1,63 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use ::time::OffsetDateTime;
+use anyhow::Context;
+use tracing::metadata::LevelFilter;
+use tracing::{event, Level};
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::EnvFilter;
+
+use crate::cli::parse_cli;
+use crate::client::Client;
+use crate::clients::Clients;
+use crate::handlers::set_up_handlers;
+use crate::listener::Listener;
+use crate::statistics::Statistics;
+
 mod cli;
 mod client;
 mod clients;
 mod config;
 mod ffi_wrapper;
 mod handlers;
+mod helpers;
 mod line;
 mod listener;
 mod matches;
+mod sender;
 mod statistics;
-mod time;
-
-use crate::cli::parse_cli;
-use crate::client::Client;
-use crate::clients::Clients;
-use crate::config::Config;
-use crate::handlers::set_up_handlers;
-use crate::listener::Listener;
-use crate::statistics::Statistics;
-use crate::time::milliseconds_since_epoch;
-
-use tracing::event;
-use tracing::Level;
-
-use std::os::unix::io::AsRawFd;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
+mod traits;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
 static DUMPSTATS: AtomicBool = AtomicBool::new(false);
 
-fn main() -> Result<(), anyhow::Error> {
-    tracing_subscriber::fmt::init();
+fn main() {
+    let _t = t();
+}
+
+fn t() -> Result<(), anyhow::Error> {
+    tracing_subscriber::fmt::Subscriber::builder()
+        .with_env_filter(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .from_env_lossy(),
+        )
+        .finish()
+        .init();
 
     let mut statistics: Statistics = Statistics::new();
 
-    let mut config = Config::default();
+    let mut config = parse_cli().map_err(|e| {
+        // this prints the error in color and exits
+        // can't do anything else until
+        // https://github.com/clap-rs/clap/issues/2914
+        // is merged in
+        if let Some(clap_error) = e.downcast_ref::<clap::error::Error>() {
+            clap_error.exit();
+        }
 
-    parse_cli(&mut config)?;
+        e
+    })?;
 
     config.log();
 
@@ -50,54 +71,53 @@ fn main() -> Result<(), anyhow::Error> {
     while RUNNING.load(Ordering::SeqCst) {
         if DUMPSTATS.load(Ordering::SeqCst) {
             // print stats requested (SIGUSR1)
-            statistics.log_totals(clients.make_contiguous());
+            statistics.log_totals(&(*clients));
             DUMPSTATS.store(false, Ordering::SeqCst);
         }
 
         // Enqueue clients that are due for another message
-        let (timeout, bytes_sent) = clients.process_queue(&config);
+        let queue_processing_result = clients.process_queue(&config);
 
-        statistics.bytes_sent += bytes_sent;
+        statistics.bytes_sent += queue_processing_result.bytes_sent;
+        statistics.milliseconds += queue_processing_result.time_spent;
 
-        if clients.len() < config.max_clients.get() && listener.wait_poll(timeout)? {
+        let timeout = queue_processing_result.wait_until.into();
+
+        if listener.wait_poll(clients.len() < config.max_clients.get(), timeout)? {
+            event!(
+                Level::DEBUG,
+                message = "Trying to accept incoming connection"
+            );
+
             let accept = listener.accept();
-
-            event!(Level::DEBUG, ?accept, "Incoming connection");
 
             statistics.connects += 1;
 
             match accept {
                 Ok((socket, addr)) => {
-                    let send_next = milliseconds_since_epoch() + u128::from(config.delay_ms.get());
-                    match socket.set_nonblocking(true) {
+                    let send_next = OffsetDateTime::now_utc() + config.delay;
+                    match socket.set_nonblocking(true).with_context(|| {
+                        "Failed to set incoming connect to non-blocking mode, discarding"
+                    }) {
                         Ok(_) => {},
                         Err(e) => {
-                            event!(
-                                Level::WARN,
-                                ?e,
-                                "Failed to set incoming to non-blocking mode, discarding"
-                            );
+                            event!(Level::WARN, ?e,);
 
-                            drop(socket);
                             // can't do anything anymore
                             continue;
                         },
                     }
 
-                    let client = Client::new(socket, addr, send_next);
+                    let client = Client::initialize(socket, addr, send_next);
 
                     clients.push_back(client);
 
-                    let client = clients.back().unwrap();
-
                     event!(
                         Level::INFO,
-                        "ACCEPT host={} port={} fd={} n={}/{}",
-                        client.ipaddr,
-                        client.port,
-                        client.tcp_stream.as_raw_fd(),
-                        clients.len(),
-                        config.max_clients
+                        message = "Accepted new client",
+                        addr = ?addr,
+                        current_clients = clients.len(),
+                        max_clients = config.max_clients
                     );
                 },
                 Err(e) => match e.raw_os_error() {
@@ -105,7 +125,7 @@ fn main() -> Result<(), anyhow::Error> {
                         // libc::EMFILE is raised when we've reached our per-process
                         // open handles, so we're setting the limit to the current connected clients
                         config.max_clients = clients.len().try_into()?;
-                        event!(Level::WARN, ?e, "Unable to accept new connection");
+                        event!(Level::WARN, message = "Unable to accept new connection", ?e);
                     },
                     Some(
                         libc::ENFILE
@@ -122,13 +142,14 @@ fn main() -> Result<(), anyhow::Error> {
                         // libc::ENOMEM: no memory
                         // libc::EPROTO: protocol error
                         // all are non fatal
-                        event!(Level::INFO, ?e, "Unable to accept new connection");
+                        event!(Level::INFO, message = "Unable to accept new connection", ?e);
                     },
                     _ => {
-                        let wrapped =
-                            anyhow::Error::new(e).context("Unable to accept new connection");
-                        event!(Level::ERROR, ?wrapped);
-                        return Err(wrapped);
+                        return Err(wrap_and_report!(
+                            Level::ERROR,
+                            e,
+                            "Unable to accept new connection"
+                        ));
                     },
                 },
             }

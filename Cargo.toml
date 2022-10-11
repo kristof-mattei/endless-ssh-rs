@@ -3,12 +3,12 @@ name = "endless-ssh-rs"
 # don't change this, it's updated before an actual build by update-version.sh
 version = "0.0.0-development"
 edition = "2021"
-rust-version = "1.63.0"
+rust-version = "1.64.0"
 authors = ["Kristof Mattei"]
 description = "endless-ssh-rs"
 license-file = "LICENSE"
-categories = ["ssh", "hacker"]
-keywords = ["ssh", "hacker"]
+categories = ["ssh", "utility"]
+keywords = ["ssh", "tarpit", "script-kiddies"]
 repository = "https://github.com/kristof-mattei/endless-ssh-rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -17,16 +17,20 @@ repository = "https://github.com/kristof-mattei/endless-ssh-rs"
 coverage = []
 
 [dependencies]
-anyhow = "1.0.61"
-clap = { version = "3.2.17", features = ["cargo"] }
+anyhow = { version = "1.0.65", features = ["backtrace"] }
+clap = { version = "4.0.12", features = ["cargo"] }
+libc = "0.2.135"
 lazy_static = "1.4.0"
-libc = "0.2.131"
 mockall = "0.11.2"
 mockall_double = "0.3.0"
 rand = "0.8.5"
-tracing = "0.1.36"
-tracing-subscriber = "0.3.15"
-
+time = { version = "0.3.15", features = ["formatting"] }
+tracing = "0.1.37"
+tracing-subscriber = { version = "0.3.16", features = [
+    "env-filter",
+    "time",
+    "tracing-log",
+] }
 # We compile the Docker container with musl to get a static library. Smaller, faster.
 # BUT that means that we need to include openssl
 # Documentation on the syntax:

@@ -18,24 +18,22 @@ jobs:
     name: Scan
     runs-on: ubuntu-latest
 
+    container:
+      image: returntocorp/semgrep@sha256:fb36c029cc1cf536414a7043927c9e26b1edb378b594e5fe24f6c700f3c9fd8e
+
     steps:
       - name: Check out repo
-        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # tag=v3.1.0
 
-      - name: Install Semgrep
-        shell: bash
-        run: |
-          brew install semgrep
-
-      - name: Run Semgrep
+      - name: Run semgrep
         shell: bash
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
         run: |
-          semgrep scan --sarif --output=semgrep.sarif --config=auto
+          semgrep ci --sarif --output=semgrep.sarif
 
       - name: Upload SARIF file for GitHub Advanced Security Dashboard
         if: always()
-        uses: github/codeql-action/upload-sarif@680d08e97de81470381833edab18a51ab5a89f0c
+        uses: github/codeql-action/upload-sarif@807578363a7869ca324a79039e6db9c843e0e100 # tag=v2.1.27
         with:
           sarif_file: semgrep.sarif

@@ -24,10 +24,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repo
-        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # tag=v3.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@094c36e88e2a3ffdf4d3a5bb935088ac39a46acc
+        uses: actions/setup-node@969bd2663942d722d85b6a8626225850c2f7be4b # tag=v3.5.0
         with:
           node-version-file: ".nvmrc"
           cache: "npm"
@@ -39,7 +39,7 @@ jobs:
           npm ci --ignore-scripts
 
       - name: Split the incoming tag into major, minor and patch
-        uses: actions/github-script@d50f485531ba88479582bc2da03ff424389af5c1
+        uses: actions/github-script@7dff1a87643417cf3b95bb10b29f4c4bc60d8ebd # tag=v6.3.1
         env:
           # because in the JS github variable ref_name isn't there
           TAGNAME: ${{ github.ref_name }}
@@ -56,7 +56,7 @@ jobs:
             core.exportVariable("PATCH", parsed.patch);
 
       - name: Move v${{ env.MAJOR }} and v${{ env.MAJOR }}.${{ env.MINOR }} tags
-        uses: actions/github-script@d50f485531ba88479582bc2da03ff424389af5c1
+        uses: actions/github-script@7dff1a87643417cf3b95bb10b29f4c4bc60d8ebd # tag=v6.3.1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -117,10 +117,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repo
-        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # tag=v3.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@094c36e88e2a3ffdf4d3a5bb935088ac39a46acc
+        uses: actions/setup-node@969bd2663942d722d85b6a8626225850c2f7be4b # tag=v3.5.0
         with:
           node-version-file: ".nvmrc"
           cache: "npm"
@@ -132,7 +132,7 @@ jobs:
           npm ci --ignore-scripts
 
       - name: Download crane tar, extract, and add folder to path.
-        uses: actions/github-script@d50f485531ba88479582bc2da03ff424389af5c1
+        uses: actions/github-script@7dff1a87643417cf3b95bb10b29f4c4bc60d8ebd # tag=v6.3.1
         with:
           script: |
             const tc = require("@actions/tool-cache");
@@ -154,7 +154,7 @@ jobs:
             core.addPath(craneExtractedFolder);
 
       - name: Log into registry ${{ env.REGISTRY }}
-        uses: docker/login-action@d398f07826957cd0a18ea1b059cf1207835e60bc
+        uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b # tag=v2
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -184,7 +184,7 @@ jobs:
 
       - name: Set the new TAGs
         id: meta
-        uses: docker/metadata-action@ee266832e57cb510bc6060ce5129df0529f119df
+        uses: docker/metadata-action@69f6fc9d46f2f8bf0d5491e4aabe0bb8c6a4678a # tag=v4.0.1
         with:
           images: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
           tags: |

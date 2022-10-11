@@ -1,12 +1,13 @@
+use time::{Duration, OffsetDateTime};
+
 use tracing::event;
 use tracing::Level;
 
 use crate::client::Client;
-use crate::time::milliseconds_since_epoch;
 
 pub(crate) struct Statistics {
     pub(crate) connects: u64,
-    pub(crate) milliseconds: u128,
+    pub(crate) milliseconds: Duration,
     pub(crate) bytes_sent: usize,
 }
 
@@ -15,26 +16,29 @@ impl Statistics {
         Self {
             bytes_sent: 0,
             connects: 0,
-            milliseconds: 0,
+            milliseconds: Duration::ZERO,
         }
     }
 
-    pub(crate) fn log_totals(&self, clients: &[Client]) {
+    pub(crate) fn log_totals<'c>(&self, clients: impl IntoIterator<Item = &'c Client>) {
         let mut milliseconds = self.milliseconds;
 
-        let now = milliseconds_since_epoch();
+        let now = OffsetDateTime::now_utc();
 
         for client in clients {
-            milliseconds += now - client.connect_time;
+            milliseconds += client.connect_time - now;
         }
 
         event!(
             Level::INFO,
-            "TOTALS connects={} seconds={}.{:03} bytes={}",
-            self.connects,
-            milliseconds / 1000,
-            milliseconds % 1000,
-            self.bytes_sent,
+            connects = self.connects,
+            time_spent = format_args!(
+                "{}.{:03}",
+                self.milliseconds.whole_seconds(),
+                self.milliseconds.subsec_milliseconds()
+            ),
+            bytes_sent = self.bytes_sent,
+            "TOTALS"
         );
     }
 }
