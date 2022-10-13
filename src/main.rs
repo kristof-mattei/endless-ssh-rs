@@ -30,11 +30,7 @@ mod traits;
 static RUNNING: AtomicBool = AtomicBool::new(true);
 static DUMPSTATS: AtomicBool = AtomicBool::new(false);
 
-fn main() {
-    let _t = t();
-}
-
-fn t() -> Result<(), anyhow::Error> {
+fn main() -> Result<(), anyhow::Error> {
     tracing_subscriber::fmt::Subscriber::builder()
         .with_env_filter(
             EnvFilter::builder()
