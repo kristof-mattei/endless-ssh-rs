@@ -19,7 +19,7 @@ coverage = []
 [dependencies]
 anyhow = { version = "1.0.66", features = ["backtrace"] }
 clap = { version = "4.0.18", features = ["cargo"] }
-libc = "0.2.136"
+libc = "0.2.137"
 lazy_static = "1.4.0"
 mockall = "0.11.3"
 mockall_double = "0.3.0"
