@@ -5,7 +5,7 @@ use tracing::{event, Level};
 
 use crate::{client::Client, config::Config, line::randline};
 
-pub(crate) fn sender(
+pub(crate) fn sendline(
     mut client: Client,
     config: &Config,
 ) -> Result<(Client, usize), (time::Duration, usize)> {

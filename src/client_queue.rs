@@ -70,7 +70,7 @@ impl ClientQueue {
 
                 event!(Level::DEBUG, message = "Sending data to", ?client.addr);
 
-                match sender::sender(client, config) {
+                match sender::sendline(client, config) {
                     Ok((mut client, bytes_sent)) => {
                         client.bytes_sent += bytes_sent;
                         client.time_spent += config.delay;
