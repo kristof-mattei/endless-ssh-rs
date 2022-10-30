@@ -1,14 +1,15 @@
+use std::io::Error;
+use std::mem::size_of_val;
+use std::net::TcpStream;
+use std::os::unix::prelude::AsRawFd;
+use std::ptr::addr_of;
+
 use libc::c_int;
 use libc::c_void;
 use libc::setsockopt;
 use libc::socklen_t;
 use libc::SOL_SOCKET;
 use libc::SO_RCVBUF;
-use std::io::Error;
-use std::mem::size_of_val;
-use std::net::TcpStream;
-use std::os::unix::prelude::AsRawFd;
-use std::ptr::addr_of;
 
 pub(crate) fn set_receive_buffer_size(
     tcp_stream: &TcpStream,

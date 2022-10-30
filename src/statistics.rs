@@ -1,5 +1,4 @@
-use time::{Duration, OffsetDateTime};
-
+use time::Duration;
 use tracing::event;
 use tracing::Level;
 
@@ -7,7 +6,7 @@ use crate::client::Client;
 
 pub(crate) struct Statistics {
     pub(crate) connects: u64,
-    pub(crate) milliseconds: Duration,
+    pub(crate) time_spent: Duration,
     pub(crate) bytes_sent: usize,
 }
 
@@ -16,29 +15,33 @@ impl Statistics {
         Self {
             bytes_sent: 0,
             connects: 0,
-            milliseconds: Duration::ZERO,
+            time_spent: Duration::ZERO,
         }
     }
 
     pub(crate) fn log_totals<'c>(&self, clients: impl IntoIterator<Item = &'c Client>) {
-        let mut milliseconds = self.milliseconds;
-
-        let now = OffsetDateTime::now_utc();
+        let mut time_spent = self.time_spent;
+        let mut bytes_sent = self.bytes_sent;
 
         for client in clients {
-            milliseconds += client.connect_time - now;
+            time_spent += client.time_spent;
+            bytes_sent += client.bytes_sent;
         }
 
         event!(
             Level::INFO,
+            message = "TOTALS",
             connects = self.connects,
             time_spent = format_args!(
-                "{}.{:03}",
-                self.milliseconds.whole_seconds(),
-                self.milliseconds.subsec_milliseconds()
+                "{} week(s), {} day(s), {} hour(s), {} minute(s), {}.{:03} second(s)",
+                time_spent.whole_weeks(),
+                time_spent.whole_days(),
+                time_spent.whole_hours(),
+                time_spent.whole_minutes(),
+                time_spent.whole_seconds(),
+                time_spent.subsec_milliseconds()
             ),
-            bytes_sent = self.bytes_sent,
-            "TOTALS"
+            ?bytes_sent,
         );
     }
 }
