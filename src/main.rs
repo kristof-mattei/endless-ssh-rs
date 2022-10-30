@@ -1,22 +1,6 @@
-use std::sync::atomic::{AtomicBool, Ordering};
-
-use ::time::OffsetDateTime;
-use anyhow::Context;
-use tracing::metadata::LevelFilter;
-use tracing::{event, Level};
-use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::EnvFilter;
-
-use crate::cli::parse_cli;
-use crate::client::Client;
-use crate::clients::Clients;
-use crate::handlers::set_up_handlers;
-use crate::listener::Listener;
-use crate::statistics::Statistics;
-
 mod cli;
 mod client;
-mod clients;
+mod client_queue;
 mod config;
 mod ffi_wrapper;
 mod handlers;
@@ -26,6 +10,22 @@ mod listener;
 mod sender;
 mod statistics;
 mod traits;
+
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use anyhow::Context;
+use time::OffsetDateTime;
+use tracing::metadata::LevelFilter;
+use tracing::{event, Level};
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::EnvFilter;
+
+use crate::cli::parse_cli;
+use crate::client::Client;
+use crate::client_queue::ClientQueue;
+use crate::handlers::set_up_handlers;
+use crate::listener::Listener;
+use crate::statistics::Statistics;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
 static DUMPSTATS: AtomicBool = AtomicBool::new(false);
@@ -59,7 +59,7 @@ fn main() -> Result<(), anyhow::Error> {
     // Install the signal handlers
     set_up_handlers()?;
 
-    let mut clients = Clients::new();
+    let mut clients = ClientQueue::new();
 
     let listener = Listener::start_listening(&config)?;
 
@@ -74,9 +74,9 @@ fn main() -> Result<(), anyhow::Error> {
         let queue_processing_result = clients.process_queue(&config);
 
         statistics.bytes_sent += queue_processing_result.bytes_sent;
-        statistics.milliseconds += queue_processing_result.time_spent;
+        statistics.time_spent += queue_processing_result.time_spent;
 
-        let timeout = queue_processing_result.wait_until.into();
+        let timeout = &queue_processing_result.wait_until.into();
 
         if listener.wait_poll(clients.len() < config.max_clients.get(), timeout)? {
             event!(
@@ -153,7 +153,7 @@ fn main() -> Result<(), anyhow::Error> {
 
     let time_spent = clients.destroy_clients();
 
-    statistics.milliseconds += time_spent;
+    statistics.time_spent += time_spent;
 
     statistics.log_totals(&[]);
 

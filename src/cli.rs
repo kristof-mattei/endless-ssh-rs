@@ -1,9 +1,17 @@
-use anyhow::Context;
-use clap::parser::ValueSource;
-use mockall_double::double;
 use std::num::NonZeroU16;
 use std::num::NonZeroU32;
 use std::num::NonZeroUsize;
+
+use anyhow::Context;
+use clap::command;
+use clap::parser::ValueSource;
+use clap::value_parser;
+use clap::Arg;
+use clap::ArgAction;
+use clap::Command;
+use lazy_static::lazy_static;
+use mockall::automock;
+use mockall_double::double;
 use tracing::event;
 use tracing::Level;
 
@@ -12,14 +20,6 @@ use crate::config::DEFAULT_DELAY_MS;
 use crate::config::DEFAULT_MAX_CLIENTS;
 use crate::config::DEFAULT_MAX_LINE_LENGTH;
 use crate::config::DEFAULT_PORT;
-
-use clap::command;
-use clap::value_parser;
-use clap::Arg;
-use clap::ArgAction;
-use clap::Command;
-use lazy_static::lazy_static;
-use mockall::automock;
 
 lazy_static! {
     static ref DEFAULT_PORT_VALUE: String = DEFAULT_PORT.to_string();

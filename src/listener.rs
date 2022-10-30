@@ -1,18 +1,3 @@
-use crate::config::BindFamily;
-use crate::config::Config;
-use crate::wrap_and_report;
-
-use anyhow::Context;
-use anyhow::Result;
-
-use libc::poll;
-use libc::pollfd;
-use libc::POLLIN;
-
-use tracing::event;
-use tracing::instrument;
-use tracing::Level;
-
 use std::fmt::Display;
 use std::io::Error;
 use std::io::ErrorKind;
@@ -25,7 +10,19 @@ use std::net::TcpListener;
 use std::ops::Deref;
 use std::os::unix::prelude::AsRawFd;
 use std::ptr::addr_of_mut;
+
+use anyhow::Context;
+use anyhow::Result;
+use libc::poll;
+use libc::pollfd;
+use libc::POLLIN;
 use time::Duration;
+use tracing::event;
+use tracing::Level;
+
+use crate::config::BindFamily;
+use crate::config::Config;
+use crate::wrap_and_report;
 
 pub(crate) enum Timeout {
     Infinite,
@@ -104,11 +101,10 @@ impl Listener {
         Ok(Self(listener))
     }
 
-    #[instrument()]
     pub(crate) fn wait_poll(
         &self,
         can_accept_more_clients: bool,
-        timeout: Timeout,
+        timeout: &Timeout,
     ) -> Result<bool, anyhow::Error> {
         // Wait for next event
         let mut fds: pollfd = pollfd {

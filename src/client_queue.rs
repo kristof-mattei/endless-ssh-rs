@@ -13,11 +13,11 @@ pub(crate) struct QueueProcessingResult {
     pub(crate) time_spent: Duration,
 }
 
-pub(crate) struct Clients {
+pub(crate) struct ClientQueue {
     clients: VecDeque<Client>,
 }
 
-impl std::ops::Deref for Clients {
+impl std::ops::Deref for ClientQueue {
     type Target = VecDeque<Client>;
 
     fn deref(&self) -> &Self::Target {
@@ -25,13 +25,19 @@ impl std::ops::Deref for Clients {
     }
 }
 
-impl std::ops::DerefMut for Clients {
+impl std::ops::DerefMut for ClientQueue {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.clients
     }
 }
 
-impl Clients {
+impl Default for ClientQueue {
+    fn default() -> Self {
+        ClientQueue::new()
+    }
+}
+
+impl ClientQueue {
     pub(crate) fn new() -> Self {
         Self {
             clients: VecDeque::new(),
@@ -42,7 +48,9 @@ impl Clients {
         let mut time_spent = Duration::ZERO;
 
         for c in self.clients.drain(..) {
-            time_spent += c.destroy();
+            time_spent += c.time_spent;
+
+            // c goes out of scope and gets dropped
         }
 
         time_spent
@@ -61,30 +69,25 @@ impl Clients {
         while let Some(potential_client) = self.clients.front() {
             if potential_client.send_next <= now {
                 // client is a valid candidate to get a line sent
-                let mut client = self
+                let client = self
                     .clients
                     .pop_front()
                     .expect("pop_front() after front() failed, universe is broken");
 
-                event!(Level::DEBUG, message = "Sending data to client", ?client);
-                match sender::sendline(&mut client.tcp_stream, config.max_line_length.get()) {
-                    Ok(result) => {
-                        // Sometimes things happen that aren't fatal
-                        // in which case we couldn't send any results
-                        if let Some(sent) = result {
-                            bytes_sent += sent;
-                            client.bytes_sent += sent;
-                        }
+                event!(Level::DEBUG, message = "Sending data to", ?client.addr);
 
-                        // in either case, we're re-scheduling this client for later
+                match sender::sendline(client, config) {
+                    Ok((mut client, bytes_sent)) => {
+                        client.bytes_sent += bytes_sent;
+                        client.time_spent += config.delay;
                         client.send_next = now + config.delay;
 
                         // and put it in the back
                         self.clients.push_back(client);
                     },
-                    Err(_) => {
-                        // fatal error sending data to the client
-                        milliseconds += client.destroy();
+                    Err((d, b)) => {
+                        milliseconds += d;
+                        bytes_sent += b;
                     },
                 }
             } else {
