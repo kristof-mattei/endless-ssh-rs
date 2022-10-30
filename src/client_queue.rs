@@ -31,6 +31,12 @@ impl std::ops::DerefMut for ClientQueue {
     }
 }
 
+impl Default for ClientQueue {
+    fn default() -> Self {
+        ClientQueue::new()
+    }
+}
+
 impl ClientQueue {
     pub(crate) fn new() -> Self {
         Self {

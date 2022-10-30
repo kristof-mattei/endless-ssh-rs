@@ -104,7 +104,7 @@ impl Listener {
     pub(crate) fn wait_poll(
         &self,
         can_accept_more_clients: bool,
-        timeout: Timeout,
+        timeout: &Timeout,
     ) -> Result<bool, anyhow::Error> {
         // Wait for next event
         let mut fds: pollfd = pollfd {

@@ -10,6 +10,12 @@ pub(crate) struct Statistics {
     pub(crate) bytes_sent: usize,
 }
 
+impl Default for Statistics {
+    fn default() -> Self {
+        Statistics::new()
+    }
+}
+
 impl Statistics {
     pub(crate) fn new() -> Self {
         Self {

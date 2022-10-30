@@ -76,7 +76,7 @@ fn main() -> Result<(), anyhow::Error> {
         statistics.bytes_sent += queue_processing_result.bytes_sent;
         statistics.time_spent += queue_processing_result.time_spent;
 
-        let timeout = queue_processing_result.wait_until.into();
+        let timeout = &queue_processing_result.wait_until.into();
 
         if listener.wait_poll(clients.len() < config.max_clients.get(), timeout)? {
             event!(
