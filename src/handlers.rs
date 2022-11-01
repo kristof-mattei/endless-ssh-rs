@@ -1,5 +1,8 @@
-use crate::DUMPSTATS;
-use crate::RUNNING;
+use std::io::Error;
+use std::mem::MaybeUninit;
+use std::ptr::null_mut;
+use std::sync::atomic::Ordering;
+
 use libc::c_int;
 use libc::sigaction;
 use libc::sigset_t;
@@ -8,12 +11,12 @@ use libc::SIGPIPE;
 use libc::SIGTERM;
 use libc::SIGUSR1;
 use libc::SIG_IGN;
-use std::io::Error;
-use std::mem::MaybeUninit;
-use std::ptr::null_mut;
-use std::sync::atomic::Ordering;
 use tracing::event;
 use tracing::Level;
+
+use crate::wrap_and_report;
+use crate::DUMPSTATS;
+use crate::RUNNING;
 
 #[no_mangle]
 pub extern "C" fn sigterm_handler(_signal: u32) {
@@ -36,13 +39,11 @@ fn set_up_handler(signum: c_int, handler: usize) -> Result<(), anyhow::Error> {
     };
 
     if unsafe { sigaction(signum, &sa, null_mut()) } == -1 {
-        let last_error = Error::last_os_error();
-
-        let wrapped = anyhow::Error::new(last_error).context("Failure to install signal handler");
-
-        event!(Level::ERROR, ?wrapped);
-
-        return Err(wrapped);
+        return Err(wrap_and_report!(
+            Level::ERROR,
+            Error::last_os_error(),
+            "Failure to install signal handler"
+        ));
     }
 
     Ok(())

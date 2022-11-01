@@ -19,8 +19,30 @@
                     "kind": "bin"
                 }
             },
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "RUST_BACKTRACE": "1",
+                "RUST_LOG": "endless_ssh_rs=trace"
+            }
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'endless-ssh-rs' wrong-params",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=endless-ssh-rs",
+                    "--package=endless-ssh-rs"
+                ],
+                "filter": {
+                    "name": "endless-ssh-rs",
+                    "kind": "bin"
+                }
+            },
             "args": [
-                "-vv"
+                "wrong-params"
             ],
             "cwd": "${workspaceFolder}",
             "env": {

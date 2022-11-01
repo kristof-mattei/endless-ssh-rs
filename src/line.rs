@@ -7,6 +7,9 @@ mod rand_wrap {
     use rand::Rng;
 
     #[cfg_attr(test, allow(dead_code))]
+    // delete when https://github.com/rust-lang/rust-clippy/pull/9486
+    // is merged in
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn rand_in_range<T, R>(range: R) -> T
     where
         T: SampleUniform + 'static,
@@ -83,8 +86,8 @@ mod tests {
         ctx.expect::<usize, RangeInclusive<usize>>()
             .returning(|x| *x.end());
 
-        // every byte will be 66, or 'b'
-        ctx.expect::<u8, RangeInclusive<u8>>().return_const(65u8);
+        // every byte will be 97, or 'a'
+        ctx.expect::<u8, RangeInclusive<u8>>().return_const(b'a');
 
         let max_len = 50;
         let randline = randline(max_len);
@@ -104,6 +107,10 @@ mod tests {
         // given
         // mock rng
         let ctx = rand::rand_in_range_context();
+
+        // set random length to requested maximum length
+        ctx.expect::<usize, RangeInclusive<usize>>()
+            .returning(|x| *x.end());
 
         ctx.expect::<u8, RangeInclusive<u8>>().return_const(b'a');
 
