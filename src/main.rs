@@ -13,7 +13,6 @@ mod traits;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use anyhow::Context;
 use time::OffsetDateTime;
 use tracing::metadata::LevelFilter;
 use tracing::{event, Level};
@@ -76,7 +75,7 @@ fn main() -> Result<(), anyhow::Error> {
         statistics.bytes_sent += queue_processing_result.bytes_sent;
         statistics.time_spent += queue_processing_result.time_spent;
 
-        let timeout = &queue_processing_result.wait_until.into();
+        let timeout = &queue_processing_result.timeout.into();
 
         if listener.wait_poll(clients.len() < config.max_clients.get(), timeout)? {
             event!(
@@ -91,12 +90,14 @@ fn main() -> Result<(), anyhow::Error> {
             match accept {
                 Ok((socket, addr)) => {
                     let send_next = OffsetDateTime::now_utc() + config.delay;
-                    match socket.set_nonblocking(true).with_context(|| {
-                        "Failed to set incoming connect to non-blocking mode, discarding"
-                    }) {
+                    match socket.set_nonblocking(true) {
                         Ok(_) => {},
                         Err(e) => {
-                            event!(Level::WARN, ?e,);
+                            wrap_and_report!(
+                                Level::WARN,
+                                e,
+                                "Failed to set incoming connect to non-blocking mode, discarding"
+                            );
 
                             // can't do anything anymore
                             continue;

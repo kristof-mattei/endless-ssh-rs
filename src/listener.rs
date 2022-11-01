@@ -40,9 +40,13 @@ impl std::fmt::Debug for Timeout {
 
 impl Timeout {
     pub(crate) fn as_c_timeout(&self) -> i32 {
+        // note the + 1
+        // Duration stores data as seconds and nanoseconds internally.
+        // if the nanoseconds < 1 milliseconds it gets lost
+        // so we add one to make sure we always wait until the duration has passed
         match self {
             Timeout::Infinite => -1,
-            Timeout::Duration(m) => i32::try_from(m.whole_milliseconds()).unwrap_or(i32::MAX),
+            Timeout::Duration(m) => i32::try_from(m.whole_milliseconds() + 1).unwrap_or(i32::MAX),
         }
     }
 }
@@ -113,18 +117,15 @@ impl Listener {
             revents: 0,
         };
 
-        if can_accept_more_clients {
-            event!(
-                Level::DEBUG,
-                message = "Waiting for data on socket",
-                ?timeout
-            );
-        } else {
-            event!(
-                Level::DEBUG,
-                message = "Maximum clients reached, just waiting until timeout expires"
-            );
-        }
+        event!(
+            Level::DEBUG,
+            message = if can_accept_more_clients {
+                "Waiting for data on socket or timeout expiration"
+            } else {
+                "Maximum clients reached, just waiting until timeout expires"
+            },
+            ?timeout,
+        );
 
         let r = unsafe {
             poll(
