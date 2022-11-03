@@ -130,7 +130,7 @@ impl Listener {
         let r = unsafe {
             poll(
                 addr_of_mut!(fds),
-                if can_accept_more_clients { 1 } else { 0 },
+                u64::from(can_accept_more_clients),
                 timeout.as_c_timeout(),
             )
         };
