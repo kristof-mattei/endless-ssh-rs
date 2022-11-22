@@ -31,6 +31,7 @@ lazy_static! {
 fn build_clap_matcher() -> Command {
     command!()
         .disable_help_flag(true)
+        .color(clap::ColorChoice::Always)
         .arg(
             Arg::new("only_4")
                 .short('4')
@@ -136,65 +137,72 @@ pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
         },
     }
 
-    if Some(ValueSource::CommandLine) == matches.value_source("delay") {
-        let delay_match: Option<&u64> = matches.get_one("delay");
-        if let Some(&d) = delay_match {
-            let arg_u32 =
-                u32::try_from(d).with_context(|| format!("Couldn't convert '{d}' to u32"))?;
+    if let Some(&d) = get_user_cli_value::<u64>(&matches, "delay") {
+        let arg_u32 = u32::try_from(d).with_context(|| format!("Couldn't convert '{d}' to u32"))?;
 
-            let non_zero_arg = NonZeroU32::new(arg_u32)
-                .with_context(|| format!("{arg_u32} is not a valid value for delay"))?;
+        let non_zero_arg = NonZeroU32::new(arg_u32)
+            .with_context(|| format!("{arg_u32} is not a valid value for delay"))?;
 
-            config.set_delay(non_zero_arg);
-        }
+        config.set_delay(non_zero_arg);
     }
 
-    if Some(ValueSource::CommandLine) == matches.value_source("port") {
-        let port_match: Option<&u64> = matches.get_one("port");
-        if let Some(&p) = port_match {
-            let arg_u16 =
-                u16::try_from(p).with_context(|| format!("Couldn't convert '{p}' to u16"))?;
+    if let Some(&p) = get_user_cli_value::<u64>(&matches, "port") {
+        let arg_u16 = u16::try_from(p).with_context(|| format!("Couldn't convert '{p}' to u16"))?;
 
-            let non_zero_arg = NonZeroU16::new(arg_u16)
-                .with_context(|| format!("{arg_u16} is not a valid value for port"))?;
+        let non_zero_arg = NonZeroU16::new(arg_u16)
+            .with_context(|| format!("{arg_u16} is not a valid value for port"))?;
 
-            config.set_port(non_zero_arg);
-        }
+        config.set_port(non_zero_arg);
     }
 
-    if Some(ValueSource::CommandLine) == matches.value_source("max-line-length") {
-        if let Some(&l) = matches.get_one::<u64>("max-line-length") {
-            let arg_usize =
-                usize::try_from(l).with_context(|| format!("Couldn't convert '{l}' to usize"))?;
+    if let Some(&l) = get_user_cli_value::<u64>(&matches, "max-line-length") {
+        let arg_usize =
+            usize::try_from(l).with_context(|| format!("Couldn't convert '{l}' to usize"))?;
 
-            let non_zero_arg = NonZeroUsize::try_from(arg_usize).map_err(|_| {
-                anyhow::Error::msg(format!(
-                    "{} is not a valid value for max-line-length",
-                    arg_usize
-                ))
-            })?;
+        let non_zero_arg = NonZeroUsize::try_from(arg_usize).map_err(|_| {
+            anyhow::Error::msg(format!(
+                "{} is not a valid value for max-line-length",
+                arg_usize
+            ))
+        })?;
 
-            config.set_max_line_length(non_zero_arg);
-        }
+        config.set_max_line_length(non_zero_arg);
     }
 
-    if Some(ValueSource::CommandLine) == matches.value_source("max-clients") {
-        if let Some(&c) = matches.get_one::<u64>("max-clients") {
-            let arg_usize =
-                usize::try_from(c).with_context(|| format!("Couldn't convert '{c}' to usize"))?;
+    if let Some(&c) = get_user_cli_value::<u64>(&matches, "max-clients") {
+        let arg_usize =
+            usize::try_from(c).with_context(|| format!("Couldn't convert '{c}' to usize"))?;
 
-            let non_zero_arg = NonZeroUsize::try_from(arg_usize).map_err(|_| {
-                anyhow::Error::msg(format!(
-                    "{} is not a valid value for max-clients",
-                    arg_usize
-                ))
-            })?;
+        let non_zero_arg = NonZeroUsize::try_from(arg_usize).map_err(|_| {
+            anyhow::Error::msg(format!(
+                "{} is not a valid value for max-clients",
+                arg_usize
+            ))
+        })?;
 
-            config.set_max_clients(non_zero_arg);
-        }
+        config.set_max_clients(non_zero_arg);
     }
 
     Ok(config)
+}
+
+fn get_user_cli_value<'a, T>(matches: &'a clap::ArgMatches, key: &str) -> Option<&'a T>
+where
+    T: Clone + Send + Sync + 'static,
+{
+    // our CLI has defaults, so we check if the user has provided a value
+    let Some(ValueSource::CommandLine) = matches.value_source(key) else { return None; };
+
+    // NOTE: we might change this later to always use the user's input, as we might want this module
+    // to drive the config's defaults.
+    // I am always confused as to who should do what. Who provides defaults? Who provides upper and lower limits?
+    // Because not everything comes through a CLI. I would love to share this with something like
+    // a yaml file. But then we run into issues with valid values for a type (say 1 for max-line-length) but
+    // that's an invalid number in our logic.
+    // on the other hand there are port 100000 which doesn't even fit into our data type
+
+    // return the value provided by the user
+    matches.get_one::<T>(key)
 }
 
 #[cfg(test)]
