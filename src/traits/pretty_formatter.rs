@@ -10,7 +10,7 @@ where
     E: Debug,
 {
     match t {
-        Ok(t) => write!(f, "{}", t),
-        Err(e) => write!(f, "{:?}", e),
+        Ok(t) => write!(f, "{t}"),
+        Err(e) => write!(f, "{e:?}"),
     }
 }
