@@ -140,10 +140,10 @@ pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
         let delay_match: Option<&u64> = matches.get_one("delay");
         if let Some(&d) = delay_match {
             let arg_u32 =
-                u32::try_from(d).with_context(|| format!("Couldn't convert '{}' to u32", d))?;
+                u32::try_from(d).with_context(|| format!("Couldn't convert '{d}' to u32"))?;
 
             let non_zero_arg = NonZeroU32::new(arg_u32)
-                .with_context(|| format!("{} is not a valid value for delay", arg_u32))?;
+                .with_context(|| format!("{arg_u32} is not a valid value for delay"))?;
 
             config.set_delay(non_zero_arg);
         }
@@ -153,10 +153,10 @@ pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
         let port_match: Option<&u64> = matches.get_one("port");
         if let Some(&p) = port_match {
             let arg_u16 =
-                u16::try_from(p).with_context(|| format!("Couldn't convert '{}' to u16", p))?;
+                u16::try_from(p).with_context(|| format!("Couldn't convert '{p}' to u16"))?;
 
             let non_zero_arg = NonZeroU16::new(arg_u16)
-                .with_context(|| format!("{} is not a valid value for port", arg_u16))?;
+                .with_context(|| format!("{arg_u16} is not a valid value for port"))?;
 
             config.set_port(non_zero_arg);
         }
@@ -165,7 +165,7 @@ pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
     if Some(ValueSource::CommandLine) == matches.value_source("max-line-length") {
         if let Some(&l) = matches.get_one::<u64>("max-line-length") {
             let arg_usize =
-                usize::try_from(l).with_context(|| format!("Couldn't convert '{}' to usize", l))?;
+                usize::try_from(l).with_context(|| format!("Couldn't convert '{l}' to usize"))?;
 
             let non_zero_arg = NonZeroUsize::try_from(arg_usize).map_err(|_| {
                 anyhow::Error::msg(format!(
@@ -181,7 +181,7 @@ pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
     if Some(ValueSource::CommandLine) == matches.value_source("max-clients") {
         if let Some(&c) = matches.get_one::<u64>("max-clients") {
             let arg_usize =
-                usize::try_from(c).with_context(|| format!("Couldn't convert '{}' to usize", c))?;
+                usize::try_from(c).with_context(|| format!("Couldn't convert '{c}' to usize"))?;
 
             let non_zero_arg = NonZeroUsize::try_from(arg_usize).map_err(|_| {
                 anyhow::Error::msg(format!(

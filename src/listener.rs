@@ -33,7 +33,7 @@ impl std::fmt::Debug for Timeout {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Infinite => write!(f, "Infinite"),
-            Self::Duration(arg0) => write!(f, "{}", arg0),
+            Self::Duration(arg0) => write!(f, "{arg0}"),
         }
     }
 }

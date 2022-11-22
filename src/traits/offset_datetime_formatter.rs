@@ -8,7 +8,7 @@ pub(crate) fn offset_datetime_formatter(
     match offset_datetime.format(&Rfc3339) {
         Ok(formatted) => f.write_str(&formatted),
         Err(e) => {
-            write!(f, "Couldn't convert time to Rfc3339, error: {:?}", e)
+            write!(f, "Couldn't convert time to Rfc3339, error: {e:?}")
         },
     }
 }

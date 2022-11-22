@@ -80,7 +80,7 @@ mod tests {
 
         let only_display = (OnlyDisplay {}).display_as_debug();
 
-        assert_eq!("only_display", format!("{:?}", only_display));
+        assert_eq!("only_display", format!("{only_display:?}"));
     }
 
     #[test]
