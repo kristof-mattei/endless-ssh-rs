@@ -22,13 +22,13 @@ WORKDIR /build
 RUN cargo new endless-ssh-rs
 WORKDIR /build/endless-ssh-rs
 COPY Cargo.toml Cargo.lock ./
-RUN --mount=type=cache,target=/build/endless-ssh-rs/target \
+RUN --mount=type=cache,id=before-build,target=/build/endless-ssh-rs/target \
     cargo build --release --target ${TARGET}
 
 # now we copy in the source which is more prone to changes and build it
 COPY src ./src
 # --release not needed, it is implied with install
-RUN --mount=type=cache,target=/build/endless-ssh-rs/target \
+RUN --mount=type=cache,id=after-build,target=/build/endless-ssh-rs/target \
     cargo install --path . --target ${TARGET} --root /output
 
 FROM alpine:3.17.0@sha256:8914eb54f968791faf6a8638949e480fef81e697984fba772b3976835194c6d4
