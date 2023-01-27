@@ -1,10 +1,7 @@
-use std::num::NonZeroU16;
-use std::num::NonZeroU32;
-use std::num::NonZeroUsize;
+use std::num::{NonZeroU16, NonZeroU32, NonZeroUsize};
 use std::time::Duration;
 
-use tracing::event;
-use tracing::Level;
+use tracing::{event, Level};
 
 pub(crate) const DEFAULT_PORT: NonZeroU16 = unsafe { NonZeroU16::new_unchecked(2223) };
 pub(crate) const DEFAULT_DELAY_MS: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(10000) };

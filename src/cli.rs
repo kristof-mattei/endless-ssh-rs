@@ -1,25 +1,16 @@
-use std::num::NonZeroU16;
-use std::num::NonZeroU32;
-use std::num::NonZeroUsize;
+use std::num::{NonZeroU16, NonZeroU32, NonZeroUsize};
 
 use anyhow::Context;
-use clap::command;
 use clap::parser::ValueSource;
-use clap::value_parser;
-use clap::Arg;
-use clap::ArgAction;
-use clap::Command;
+use clap::{command, value_parser, Arg, ArgAction, Command};
 use lazy_static::lazy_static;
 use mockall::automock;
 use mockall_double::double;
-use tracing::event;
-use tracing::Level;
+use tracing::{event, Level};
 
-use crate::config::Config;
-use crate::config::DEFAULT_DELAY_MS;
-use crate::config::DEFAULT_MAX_CLIENTS;
-use crate::config::DEFAULT_MAX_LINE_LENGTH;
-use crate::config::DEFAULT_PORT;
+use crate::config::{
+    Config, DEFAULT_DELAY_MS, DEFAULT_MAX_CLIENTS, DEFAULT_MAX_LINE_LENGTH, DEFAULT_PORT,
+};
 
 lazy_static! {
     static ref DEFAULT_PORT_VALUE: String = DEFAULT_PORT.to_string();
@@ -161,8 +152,7 @@ pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
 
         let non_zero_arg = NonZeroUsize::try_from(arg_usize).map_err(|_| {
             anyhow::Error::msg(format!(
-                "{} is not a valid value for max-line-length",
-                arg_usize
+                "{arg_usize} is not a valid value for max-line-length"
             ))
         })?;
 
@@ -174,10 +164,7 @@ pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
             usize::try_from(c).with_context(|| format!("Couldn't convert '{c}' to usize"))?;
 
         let non_zero_arg = NonZeroUsize::try_from(arg_usize).map_err(|_| {
-            anyhow::Error::msg(format!(
-                "{} is not a valid value for max-clients",
-                arg_usize
-            ))
+            anyhow::Error::msg(format!("{arg_usize} is not a valid value for max-clients"))
         })?;
 
         config.set_max_clients(non_zero_arg);
@@ -207,17 +194,14 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        num::{NonZeroU16, NonZeroUsize},
-        sync::{Mutex, MutexGuard},
-    };
+    use std::num::{NonZeroU16, NonZeroUsize};
+    use std::sync::{Mutex, MutexGuard};
 
     use mockall::lazy_static;
 
-    use crate::{
-        cli::{build_clap_matcher, mock_matches_wrap::get_matches_context, parse_cli},
-        config::{BindFamily, Config},
-    };
+    use crate::cli::mock_matches_wrap::get_matches_context;
+    use crate::cli::{build_clap_matcher, parse_cli};
+    use crate::config::{BindFamily, Config};
 
     lazy_static! {
         static ref MTX: Mutex<()> = Mutex::new(());

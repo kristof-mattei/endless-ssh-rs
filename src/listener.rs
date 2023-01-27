@@ -1,27 +1,16 @@
 use std::fmt::Display;
-use std::io::Error;
-use std::io::ErrorKind;
-use std::net::Ipv4Addr;
-use std::net::Ipv6Addr;
-use std::net::SocketAddr;
-use std::net::SocketAddrV4;
-use std::net::SocketAddrV6;
-use std::net::TcpListener;
+use std::io::{Error, ErrorKind};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, TcpListener};
 use std::ops::Deref;
 use std::os::unix::prelude::AsRawFd;
 use std::ptr::addr_of_mut;
 
-use anyhow::Context;
-use anyhow::Result;
-use libc::poll;
-use libc::pollfd;
-use libc::POLLIN;
+use anyhow::{Context, Result};
+use libc::{poll, pollfd, POLLIN};
 use time::Duration;
-use tracing::event;
-use tracing::Level;
+use tracing::{event, Level};
 
-use crate::config::BindFamily;
-use crate::config::Config;
+use crate::config::{BindFamily, Config};
 use crate::wrap_and_report;
 
 pub(crate) enum Timeout {

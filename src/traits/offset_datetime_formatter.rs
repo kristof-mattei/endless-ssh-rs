@@ -1,4 +1,5 @@
-use time::{format_description::well_known::Rfc3339, OffsetDateTime};
+use time::format_description::well_known::Rfc3339;
+use time::OffsetDateTime;
 
 #[allow(unused)]
 pub(crate) fn offset_datetime_formatter(

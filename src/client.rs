@@ -1,12 +1,8 @@
 use std::io::ErrorKind;
-use std::net::Shutdown;
-use std::net::SocketAddr;
-use std::net::TcpStream;
+use std::net::{Shutdown, SocketAddr, TcpStream};
 
-use time::Duration;
-use time::OffsetDateTime;
-use tracing::event;
-use tracing::Level;
+use time::{Duration, OffsetDateTime};
+use tracing::{event, Level};
 
 use crate::ffi_wrapper::set_receive_buffer_size;
 

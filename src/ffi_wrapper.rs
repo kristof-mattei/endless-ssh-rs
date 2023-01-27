@@ -4,12 +4,7 @@ use std::net::TcpStream;
 use std::os::unix::prelude::AsRawFd;
 use std::ptr::addr_of;
 
-use libc::c_int;
-use libc::c_void;
-use libc::setsockopt;
-use libc::socklen_t;
-use libc::SOL_SOCKET;
-use libc::SO_RCVBUF;
+use libc::{c_int, c_void, setsockopt, socklen_t, SOL_SOCKET, SO_RCVBUF};
 
 pub(crate) fn set_receive_buffer_size(
     tcp_stream: &TcpStream,
