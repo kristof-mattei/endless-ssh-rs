@@ -1,9 +1,10 @@
-use std::io::ErrorKind;
-use std::io::Write;
+use std::io::{ErrorKind, Write};
 
 use tracing::{event, Level};
 
-use crate::{client::Client, config::Config, line::randline};
+use crate::client::Client;
+use crate::config::Config;
+use crate::line::randline;
 
 pub(crate) fn sendline(
     mut client: Client,

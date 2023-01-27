@@ -48,15 +48,12 @@ pub(crate) fn randline(maxlen: usize) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        ops::RangeInclusive,
-        sync::{Mutex, MutexGuard},
-    };
+    use std::ops::RangeInclusive;
+    use std::sync::{Mutex, MutexGuard};
 
     use mockall::lazy_static;
 
-    use crate::line::mock_rand_wrap as rand;
-    use crate::line::randline;
+    use crate::line::{mock_rand_wrap as rand, randline};
 
     lazy_static! {
         static ref MTX: Mutex<()> = Mutex::new(());
