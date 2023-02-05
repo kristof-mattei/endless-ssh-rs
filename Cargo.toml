@@ -17,7 +17,7 @@ repository = "https://github.com/kristof-mattei/endless-ssh-rs"
 coverage = []
 
 [dependencies]
-anyhow = { version = "1.0.68", features = ["backtrace"] }
+anyhow = { version = "1.0.69", features = ["backtrace"] }
 clap = { version = "4.1.4", features = ["cargo"] }
 libc = "0.2.139"
 lazy_static = "1.4.0"
