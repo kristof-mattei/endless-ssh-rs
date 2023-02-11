@@ -1,3 +1,9 @@
+#![cfg_attr(not(debug_assertions), deny(warnings))]
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+#![deny(clippy::cargo)]
+#![allow(clippy::uninlined_format_args)]
+
 mod cli;
 mod client;
 mod client_queue;
