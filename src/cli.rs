@@ -129,30 +129,33 @@ pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
     }
 
     if let Some(&d) = get_user_cli_value::<u64>(&matches, "delay") {
-        let arg_u32 = u32::try_from(d).with_context(|| format!("Couldn't convert '{d}' to u32"))?;
+        let arg_u32 =
+            u32::try_from(d).with_context(|| format!("Couldn't convert '{}' to u32", d))?;
 
         let non_zero_arg = NonZeroU32::new(arg_u32)
-            .with_context(|| format!("{arg_u32} is not a valid value for delay"))?;
+            .with_context(|| format!("{} is not a valid value for delay", arg_u32))?;
 
         config.set_delay(non_zero_arg);
     }
 
     if let Some(&p) = get_user_cli_value::<u64>(&matches, "port") {
-        let arg_u16 = u16::try_from(p).with_context(|| format!("Couldn't convert '{p}' to u16"))?;
+        let arg_u16 =
+            u16::try_from(p).with_context(|| format!("Couldn't convert '{}' to u16", p))?;
 
         let non_zero_arg = NonZeroU16::new(arg_u16)
-            .with_context(|| format!("{arg_u16} is not a valid value for port"))?;
+            .with_context(|| format!("{} is not a valid value for port", arg_u16))?;
 
         config.set_port(non_zero_arg);
     }
 
     if let Some(&l) = get_user_cli_value::<u64>(&matches, "max-line-length") {
         let arg_usize =
-            usize::try_from(l).with_context(|| format!("Couldn't convert '{l}' to usize"))?;
+            usize::try_from(l).with_context(|| format!("Couldn't convert '{}' to usize", l))?;
 
         let non_zero_arg = NonZeroUsize::try_from(arg_usize).map_err(|_| {
             anyhow::Error::msg(format!(
-                "{arg_usize} is not a valid value for max-line-length"
+                "{} is not a valid value for max-line-length",
+                arg_usize
             ))
         })?;
 
@@ -161,10 +164,13 @@ pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
 
     if let Some(&c) = get_user_cli_value::<u64>(&matches, "max-clients") {
         let arg_usize =
-            usize::try_from(c).with_context(|| format!("Couldn't convert '{c}' to usize"))?;
+            usize::try_from(c).with_context(|| format!("Couldn't convert '{}' to usize", c))?;
 
         let non_zero_arg = NonZeroUsize::try_from(arg_usize).map_err(|_| {
-            anyhow::Error::msg(format!("{arg_usize} is not a valid value for max-clients"))
+            anyhow::Error::msg(format!(
+                "{} is not a valid value for max-clients",
+                arg_usize
+            ))
         })?;
 
         config.set_max_clients(non_zero_arg);
