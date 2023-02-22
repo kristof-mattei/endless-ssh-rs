@@ -1,73 +1,23 @@
-use std::fmt::Display;
 use std::io::{Error, ErrorKind};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, TcpListener};
-use std::ops::Deref;
 use std::os::unix::prelude::AsRawFd;
 use std::ptr::addr_of_mut;
 
-use color_eyre::eyre::WrapErr;
+use color_eyre::eyre::{self, eyre, Report, WrapErr};
 use libc::{poll, pollfd, POLLIN};
-use time::Duration;
 use tracing::{event, Level};
 
 use crate::config::{BindFamily, Config};
-use crate::wrap_and_report;
-
-pub(crate) enum Timeout {
-    Infinite,
-    Duration(Duration),
-}
-
-impl std::fmt::Debug for Timeout {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Infinite => write!(f, "Infinite"),
-            Self::Duration(arg0) => write!(f, "{}", arg0),
-        }
-    }
-}
-
-impl Timeout {
-    pub(crate) fn as_c_timeout(&self) -> i32 {
-        // note the + 1
-        // Duration stores data as seconds and nanoseconds internally.
-        // if the nanoseconds < 1 milliseconds it gets lost
-        // so we add one to make sure we always wait until the duration has passed
-        match self {
-            Timeout::Infinite => -1,
-            Timeout::Duration(m) => i32::try_from(m.whole_milliseconds() + 1).unwrap_or(i32::MAX),
-        }
-    }
-}
-
-impl Display for Timeout {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}", self.as_c_timeout()))
-    }
-}
-
-impl From<Option<Duration>> for Timeout {
-    fn from(duration: Option<Duration>) -> Self {
-        match duration {
-            None => Timeout::Infinite,
-            Some(d) => Timeout::Duration(d),
-        }
-    }
-}
+use crate::timeout::Timeout;
 
 #[derive(Debug)]
-pub(crate) struct Listener(TcpListener);
-
-impl Deref for Listener {
-    type Target = TcpListener;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+pub(crate) struct Listener {
+    listener: TcpListener,
+    fds: pollfd,
 }
 
 impl Listener {
-    pub(crate) fn start_listening(config: &Config) -> Result<Self, color_eyre::Report> {
+    pub(crate) fn start_listening(config: &Config) -> Result<Self, eyre::Report> {
         let sa = match config.bind_family {
             BindFamily::Ipv4 => {
                 SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, config.port.get()))
@@ -91,21 +41,24 @@ impl Listener {
 
         event!(Level::DEBUG, message = "Bound and listening!", ?listener);
 
-        Ok(Self(listener))
+        let fd = listener.as_raw_fd();
+
+        Ok(Self {
+            listener,
+            fds: pollfd {
+                fd,
+                events: POLLIN,
+                revents: 0,
+            },
+        })
     }
 
     pub(crate) fn wait_poll(
-        &self,
+        &mut self,
         can_accept_more_clients: bool,
         timeout: &Timeout,
-    ) -> Result<bool, color_eyre::Report> {
+    ) -> Result<bool, eyre::Report> {
         // Wait for next event
-        let mut fds: pollfd = pollfd {
-            fd: self.0.as_raw_fd(),
-            events: POLLIN,
-            revents: 0,
-        };
-
         event!(
             Level::DEBUG,
             message = if can_accept_more_clients {
@@ -118,40 +71,55 @@ impl Listener {
 
         let r = unsafe {
             poll(
-                addr_of_mut!(fds),
+                addr_of_mut!(self.fds),
                 u64::from(can_accept_more_clients),
                 timeout.as_c_timeout(),
             )
         };
 
-        if r == -1 {
-            let last_error = Error::last_os_error();
-            // poll & ppoll's EINTR cannot be avoided by using SA_RESTART
-            // see https://stackoverflow.com/a/48553220
-            if ErrorKind::Interrupted == last_error.kind() {
-                event!(Level::DEBUG, "Poll interrupted, but that's ok, we'll retry");
-                return Ok(false);
-            }
+        match r {
+            -1 => {
+                let last_error = Error::last_os_error();
 
-            return Err(wrap_and_report!(
-                Level::ERROR,
-                last_error,
-                "Something went wrong during polling / waiting for the next call"
-            ));
-        }
+                // poll & ppoll's EINTR cannot be avoided by using SA_RESTART
+                // see https://stackoverflow.com/a/48553220
+                if ErrorKind::Interrupted == last_error.kind() {
+                    event!(Level::DEBUG, "Poll interrupted");
 
-        if fds.revents & POLLIN == POLLIN {
-            event!(
-                Level::DEBUG,
-                message = "Ending poll because of incoming connection"
-            );
-            Ok(true)
-        } else {
-            event!(
-                Level::DEBUG,
-                message = "Ending poll because of timeout expiraton"
-            );
-            Ok(false)
+                    Ok(false)
+                } else {
+                    Err(Report::from(last_error).wrap_err(
+                        "Something went wrong during polling / waiting for the next call",
+                    ))
+                }
+            },
+            0 => {
+                // ppoll returning 0 means timeout expiration
+                event!(
+                    Level::DEBUG,
+                    message = "Ending poll because of timeout expiraton"
+                );
+
+                Ok(false)
+            },
+            1 if self.fds.revents & POLLIN == POLLIN => {
+                event!(
+                    Level::DEBUG,
+                    message = "Ending poll because of incoming connection"
+                );
+
+                Ok(true)
+            },
+            r => Err(eyre!(
+                "poll() returned {}, which is impossible, as we only wait on 1 file descriptor",
+                r
+            )),
         }
+    }
+
+    pub(crate) fn accept(
+        &self,
+    ) -> Result<(std::net::TcpStream, std::net::SocketAddr), std::io::Error> {
+        self.listener.accept()
     }
 }
