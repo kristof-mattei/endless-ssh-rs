@@ -41,9 +41,7 @@
                     "kind": "bin"
                 }
             },
-            "args": [
-                "wrong-params"
-            ],
+            "args": ["wrong-params"],
             "cwd": "${workspaceFolder}",
             "env": {
                 "RUST_BACKTRACE": "1",
@@ -65,9 +63,7 @@
                     "kind": "bin"
                 }
             },
-            "args": [
-                "-h"
-            ],
+            "args": ["-h"],
             "cwd": "${workspaceFolder}",
             "env": {
                 "RUST_BACKTRACE": "1",

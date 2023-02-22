@@ -4,11 +4,11 @@
   "description": "It's written in Rust!",
   "main": "src/main.rs",
   "scripts": {
-    "prettier": "prettier -w \"**/*.{yml,yaml}\"",
+    "prettier": "prettier --write .",
     "release": "semantic-release"
   },
   "engines": {
-    "node": ">=v18.14.1",
+    "node": ">=v18.14.2",
     "npm": ">=9.5.0"
   },
   "repository": {
