@@ -14,7 +14,7 @@ pub(crate) fn sendline(
 
     match client.tcp_stream.write_all(bytes.as_slice()) {
         Ok(()) => {
-            event!(Level::DEBUG, message = "Successfully sent bytes to client", ?client.addr, bytes_sent = ?bytes.len());
+            event!(Level::INFO, message = "Data sent", ?client.addr, bytes_sent = ?bytes.len());
 
             Ok((client, bytes.len()))
         },
@@ -26,7 +26,14 @@ pub(crate) fn sendline(
         },
         Err(e) => {
             // in reality something when wrong sending the data. It happens.
-            event!(Level::WARN, message = "Failed to send data to client", ?client.addr, ?e);
+            match e.kind() {
+                ErrorKind::ConnectionReset | ErrorKind::TimedOut | ErrorKind::BrokenPipe => {
+                    event!(Level::INFO, message = "Failed to send data to client, client gone", ?client.addr, ?e);
+                },
+                _ => {
+                    event!(Level::WARN, message = "Failed to send data to client", ?client.addr, ?e);
+                },
+            }
 
             Err((client.time_spent, client.bytes_sent))
         },

@@ -9,11 +9,11 @@ mod client;
 mod client_queue;
 mod config;
 mod ffi_wrapper;
-mod handlers;
 mod helpers;
 mod line;
 mod listener;
 mod sender;
+mod signal_handlers;
 mod statistics;
 mod traits;
 
@@ -28,14 +28,16 @@ use tracing_subscriber::EnvFilter;
 use crate::cli::parse_cli;
 use crate::client::Client;
 use crate::client_queue::ClientQueue;
-use crate::handlers::set_up_handlers;
 use crate::listener::Listener;
+use crate::signal_handlers::setup;
 use crate::statistics::Statistics;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
 static DUMPSTATS: AtomicBool = AtomicBool::new(false);
 
-fn main() -> Result<(), anyhow::Error> {
+fn main() -> Result<(), color_eyre::Report> {
+    color_eyre::install().unwrap();
+
     tracing_subscriber::fmt::Subscriber::builder()
         .with_env_filter(
             EnvFilter::builder()
@@ -62,7 +64,7 @@ fn main() -> Result<(), anyhow::Error> {
     config.log();
 
     // Install the signal handlers
-    set_up_handlers()?;
+    setup()?;
 
     let mut clients = ClientQueue::new();
 
@@ -96,18 +98,16 @@ fn main() -> Result<(), anyhow::Error> {
             match accept {
                 Ok((socket, addr)) => {
                     let send_next = OffsetDateTime::now_utc() + config.delay;
-                    match socket.set_nonblocking(true) {
-                        Ok(_) => {},
-                        Err(e) => {
-                            wrap_and_report!(
-                                Level::WARN,
-                                e,
-                                "Failed to set incoming connect to non-blocking mode, discarding"
-                            );
 
-                            // can't do anything anymore
-                            continue;
-                        },
+                    if let Err(e) = socket.set_nonblocking(true) {
+                        let _ = wrap_and_report!(
+                            Level::WARN,
+                            e,
+                            "Failed to set incoming connect to non-blocking mode, discarding"
+                        );
+
+                        // can't do anything anymore
+                        continue;
                     }
 
                     let client = Client::initialize(socket, addr, send_next);

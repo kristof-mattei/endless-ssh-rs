@@ -1,8 +1,8 @@
 use std::num::{NonZeroU16, NonZeroU32, NonZeroUsize};
 
-use anyhow::Context;
 use clap::parser::ValueSource;
 use clap::{command, value_parser, Arg, ArgAction, Command};
+use color_eyre::eyre::{self, WrapErr};
 use lazy_static::lazy_static;
 use mockall::automock;
 use mockall_double::double;
@@ -107,7 +107,7 @@ mod matches_wrap {
 #[double]
 use self::matches_wrap as matches;
 
-pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
+pub(crate) fn parse_cli() -> Result<Config, eyre::Error> {
     let matches = matches::get_matches()?;
 
     let mut config = Config::new();
@@ -130,48 +130,40 @@ pub(crate) fn parse_cli() -> Result<Config, anyhow::Error> {
 
     if let Some(&d) = get_user_cli_value::<u64>(&matches, "delay") {
         let arg_u32 =
-            u32::try_from(d).with_context(|| format!("Couldn't convert '{}' to u32", d))?;
+            u32::try_from(d).wrap_err_with(|| format!("Couldn't convert '{}' to u32", d))?;
 
-        let non_zero_arg = NonZeroU32::new(arg_u32)
-            .with_context(|| format!("{} is not a valid value for delay", arg_u32))?;
+        let non_zero_arg = NonZeroU32::try_from(arg_u32)
+            .wrap_err_with(|| format!("{} is not a valid value for delay", arg_u32))?;
 
         config.set_delay(non_zero_arg);
     }
 
     if let Some(&p) = get_user_cli_value::<u64>(&matches, "port") {
         let arg_u16 =
-            u16::try_from(p).with_context(|| format!("Couldn't convert '{}' to u16", p))?;
+            u16::try_from(p).wrap_err_with(|| format!("Couldn't convert '{}' to u16", p))?;
 
-        let non_zero_arg = NonZeroU16::new(arg_u16)
-            .with_context(|| format!("{} is not a valid value for port", arg_u16))?;
+        let non_zero_arg = NonZeroU16::try_from(arg_u16)
+            .wrap_err_with(|| format!("{} is not a valid value for port", arg_u16))?;
 
         config.set_port(non_zero_arg);
     }
 
     if let Some(&l) = get_user_cli_value::<u64>(&matches, "max-line-length") {
         let arg_usize =
-            usize::try_from(l).with_context(|| format!("Couldn't convert '{}' to usize", l))?;
+            usize::try_from(l).wrap_err_with(|| format!("Couldn't convert '{}' to usize", l))?;
 
-        let non_zero_arg = NonZeroUsize::try_from(arg_usize).map_err(|_| {
-            anyhow::Error::msg(format!(
-                "{} is not a valid value for max-line-length",
-                arg_usize
-            ))
-        })?;
+        let non_zero_arg = NonZeroUsize::try_from(arg_usize)
+            .wrap_err_with(|| format!("{} is not a valid value for max-line-length", arg_usize))?;
 
         config.set_max_line_length(non_zero_arg);
     }
 
     if let Some(&c) = get_user_cli_value::<u64>(&matches, "max-clients") {
         let arg_usize =
-            usize::try_from(c).with_context(|| format!("Couldn't convert '{}' to usize", c))?;
+            usize::try_from(c).wrap_err_with(|| format!("Couldn't convert '{}' to usize", c))?;
 
-        let non_zero_arg = NonZeroUsize::try_from(arg_usize).map_err(|_| {
-            anyhow::Error::msg(format!(
-                "{} is not a valid value for max-clients",
-                arg_usize
-            ))
-        })?;
+        let non_zero_arg = NonZeroUsize::try_from(arg_usize)
+            .wrap_err_with(|| format!("{} is not a valid value for max-clients", arg_usize))?;
 
         config.set_max_clients(non_zero_arg);
     }
@@ -225,7 +217,7 @@ mod tests {
         }
     }
 
-    fn parse_factory(input: &'static str) -> Result<Config, anyhow::Error> {
+    fn parse_factory(input: &'static str) -> Result<Config, color_eyre::Report> {
         let _m = get_lock(&MTX);
 
         // mock cli

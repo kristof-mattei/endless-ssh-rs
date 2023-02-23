@@ -77,7 +77,7 @@ impl Drop for Client {
             // because we're already disconnected
             event!(
                 Level::DEBUG,
-                message = "Error while shutting down connection to client",
+                message = "Error shutting down connection to client, client still discarded",
                 ?e
             );
         }
