@@ -5,7 +5,7 @@ use std::ops::Deref;
 use std::os::unix::prelude::AsRawFd;
 use std::ptr::addr_of_mut;
 
-use anyhow::{Context, Result};
+use color_eyre::eyre::WrapErr;
 use libc::{poll, pollfd, POLLIN};
 use time::Duration;
 use tracing::{event, Level};
@@ -67,7 +67,7 @@ impl Deref for Listener {
 }
 
 impl Listener {
-    pub(crate) fn start_listening(config: &Config) -> Result<Self, anyhow::Error> {
+    pub(crate) fn start_listening(config: &Config) -> Result<Self, color_eyre::Report> {
         let sa = match config.bind_family {
             BindFamily::Ipv4 => {
                 SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, config.port.get()))
@@ -87,7 +87,7 @@ impl Listener {
 
         listener
             .set_nonblocking(true)
-            .context("Failed to set listener to non-blocking")?;
+            .wrap_err("Failed to set listener to non-blocking")?;
 
         event!(Level::DEBUG, message = "Bound and listening!", ?listener);
 
@@ -98,7 +98,7 @@ impl Listener {
         &self,
         can_accept_more_clients: bool,
         timeout: &Timeout,
-    ) -> Result<bool, anyhow::Error> {
+    ) -> Result<bool, color_eyre::Report> {
         // Wait for next event
         let mut fds: pollfd = pollfd {
             fd: self.0.as_raw_fd(),
@@ -126,10 +126,10 @@ impl Listener {
 
         if r == -1 {
             let last_error = Error::last_os_error();
-            // // poll & ppoll's EINTR cannot be avoided by using SA_RESTART
-            // // see https://stackoverflow.com/a/48553220
+            // poll & ppoll's EINTR cannot be avoided by using SA_RESTART
+            // see https://stackoverflow.com/a/48553220
             if ErrorKind::Interrupted == last_error.kind() {
-                event!(Level::DEBUG, "Poll interrupted, but that's ok");
+                event!(Level::DEBUG, "Poll interrupted, but that's ok, we'll retry");
                 return Ok(false);
             }
 

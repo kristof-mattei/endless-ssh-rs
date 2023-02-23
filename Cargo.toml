@@ -17,7 +17,7 @@ repository = "https://github.com/kristof-mattei/endless-ssh-rs"
 coverage = []
 
 [dependencies]
-anyhow = { version = "1.0.69", features = ["backtrace"] }
+color-eyre = "0.6.2"
 clap = { version = "4.1.6", features = ["cargo"] }
 libc = "0.2.139"
 lazy_static = "1.4.0"
@@ -31,6 +31,7 @@ tracing-subscriber = { version = "0.3.16", features = [
     "time",
     "tracing-log",
 ] }
+
 # We compile the Docker container with musl to get a static library. Smaller, faster.
 # BUT that means that we need to include openssl
 # Documentation on the syntax:

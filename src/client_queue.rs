@@ -86,6 +86,7 @@ impl ClientQueue {
                 ?potential_client,
                 ?now
             );
+
             if potential_client.send_next <= now {
                 processed_clients += 1;
 
