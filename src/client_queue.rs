@@ -134,6 +134,7 @@ impl ClientQueue {
                     ?timeout,
                     ?now
                 );
+
                 break;
             }
         }

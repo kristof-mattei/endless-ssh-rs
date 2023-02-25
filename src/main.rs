@@ -15,10 +15,13 @@ mod listener;
 mod sender;
 mod signal_handlers;
 mod statistics;
+mod timeout;
 mod traits;
 
+use std::env;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use color_eyre::eyre;
 use time::OffsetDateTime;
 use tracing::metadata::LevelFilter;
 use tracing::{event, Level};
@@ -29,13 +32,15 @@ use crate::cli::parse_cli;
 use crate::client::Client;
 use crate::client_queue::ClientQueue;
 use crate::listener::Listener;
-use crate::signal_handlers::setup;
 use crate::statistics::Statistics;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
 static DUMPSTATS: AtomicBool = AtomicBool::new(false);
 
-fn main() -> Result<(), color_eyre::Report> {
+#[allow(clippy::too_many_lines)]
+fn main() -> Result<(), eyre::Report> {
+    env::set_var("RUST_BACKTRACE", "full");
+
     color_eyre::install().unwrap();
 
     tracing_subscriber::fmt::Subscriber::builder()
@@ -64,11 +69,11 @@ fn main() -> Result<(), color_eyre::Report> {
     config.log();
 
     // Install the signal handlers
-    setup()?;
+    signal_handlers::setup_handlers()?;
 
     let mut clients = ClientQueue::new();
 
-    let listener = Listener::start_listening(&config)?;
+    let mut listener = Listener::start_listening(&config)?;
 
     while RUNNING.load(Ordering::SeqCst) {
         if DUMPSTATS.load(Ordering::SeqCst) {
@@ -83,36 +88,50 @@ fn main() -> Result<(), color_eyre::Report> {
         statistics.bytes_sent += queue_processing_result.bytes_sent;
         statistics.time_spent += queue_processing_result.time_spent;
 
-        let timeout = &queue_processing_result.timeout.into();
+        let timeout = queue_processing_result.timeout.into();
 
-        if listener.wait_poll(clients.len() < config.max_clients.get(), timeout)? {
-            event!(
-                Level::DEBUG,
-                message = "Trying to accept incoming connection"
-            );
+        match listener.wait_poll(clients.len() < config.max_clients.get(), &timeout) {
+            Ok(true) => (),
+            Ok(false) => continue,
+            Err(e) => {
+                event!(
+                    Level::WARN,
+                    message = "Something went wrong while polling",
+                    ?e
+                );
 
-            let accept = listener.accept();
+                continue;
+            },
+        };
 
-            statistics.connects += 1;
+        event!(
+            Level::DEBUG,
+            message = "Trying to accept incoming connection"
+        );
 
-            match accept {
-                Ok((socket, addr)) => {
-                    let send_next = OffsetDateTime::now_utc() + config.delay;
+        let accept = listener.accept();
 
-                    if let Err(e) = socket.set_nonblocking(true) {
-                        let _ = wrap_and_report!(
-                            Level::WARN,
-                            e,
-                            "Failed to set incoming connect to non-blocking mode, discarding"
-                        );
+        statistics.connects += 1;
 
-                        // can't do anything anymore
-                        continue;
-                    }
+        match accept {
+            Ok((socket, addr)) => {
+                if let Err(e) = socket.set_nonblocking(true) {
+                    let _ = wrap_and_report!(
+                        Level::WARN,
+                        e,
+                        "Failed to set incoming connect to non-blocking mode, discarding"
+                    );
 
-                    let client = Client::initialize(socket, addr, send_next);
+                    // can't do anything anymore
+                    continue;
+                }
 
-                    clients.push_back(client);
+                let send_next = OffsetDateTime::now_utc() + config.delay;
+
+                let client = Client::initialize(socket, addr, send_next);
+
+                if let Some(c) = client {
+                    clients.push_back(c);
 
                     event!(
                         Level::INFO,
@@ -121,40 +140,41 @@ fn main() -> Result<(), color_eyre::Report> {
                         current_clients = clients.len(),
                         max_clients = config.max_clients
                     );
+                }
+            },
+            Err(e) => match e.raw_os_error() {
+                Some(libc::EMFILE) => {
+                    // libc::EMFILE is raised when we've reached our per-process
+                    // open handles, so we're setting the limit to the current connected clients
+                    config.max_clients = clients.len().try_into()?;
+                    event!(Level::WARN, message = "Unable to accept new connection", ?e);
                 },
-                Err(e) => match e.raw_os_error() {
-                    Some(libc::EMFILE) => {
-                        // libc::EMFILE is raised when we've reached our per-process
-                        // open handles, so we're setting the limit to the current connected clients
-                        config.max_clients = clients.len().try_into()?;
-                        event!(Level::WARN, message = "Unable to accept new connection", ?e);
-                    },
-                    Some(
-                        libc::ENFILE
-                        | libc::ECONNABORTED
-                        | libc::EINTR
-                        | libc::ENOBUFS
-                        | libc::ENOMEM
-                        | libc::EPROTO,
-                    ) => {
-                        // libc::ENFILE: whole system has too many open handles
-                        // libc::ECONNABORTED: connection aborted while accepting
-                        // libc::EINTR: signal came in while handling this syscall,
-                        // libc::ENOBUFS: no buffer space
-                        // libc::ENOMEM: no memory
-                        // libc::EPROTO: protocol error
-                        // all are non fatal
-                        event!(Level::INFO, message = "Unable to accept new connection", ?e);
-                    },
-                    _ => {
-                        return Err(wrap_and_report!(
-                            Level::ERROR,
-                            e,
-                            "Unable to accept new connection"
-                        ));
-                    },
+                Some(
+                    libc::ENFILE
+                    | libc::ECONNABORTED
+                    | libc::EINTR
+                    | libc::ENOBUFS
+                    | libc::ENOMEM
+                    | libc::EPROTO,
+                ) => {
+                    // libc::ENFILE: whole system has too many open handles
+                    // libc::ECONNABORTED: connection aborted while accepting
+                    // libc::EINTR: signal came in while handling this syscall,
+                    // libc::ENOBUFS: no buffer space
+                    // libc::ENOMEM: no memory
+                    // libc::EPROTO: protocol error
+                    // all are non fatal
+                    event!(Level::INFO, message = "Unable to accept new connection", ?e);
                 },
-            }
+                _ => {
+                    // FATAL
+                    return Err(wrap_and_report!(
+                        Level::ERROR,
+                        e,
+                        "Unable to accept new connection"
+                    ));
+                },
+            },
         }
     }
 

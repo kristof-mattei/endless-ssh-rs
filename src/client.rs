@@ -31,7 +31,7 @@ impl Client {
         stream: TcpStream,
         addr: SocketAddr,
         start_sending_at: OffsetDateTime,
-    ) -> Self {
+    ) -> Option<Self> {
         const SIZE_IN_BYTES: usize = 1;
 
         let c = Client {
@@ -44,21 +44,18 @@ impl Client {
 
         // Set the smallest possible recieve buffer. This reduces local
         // resource usage and slows down the remote end.
-        if let Err(e) = set_receive_buffer_size(&c.tcp_stream, SIZE_IN_BYTES) {
-            event!(
-                Level::ERROR,
-                message = "Failed to set the tcp stream's receive buffer",
-                ?e
-            );
-        } else {
-            event!(
-                Level::DEBUG,
-                message = "Set the tcp stream's receive buffer",
-                receive_buffer_size = SIZE_IN_BYTES
-            );
-        }
+        match set_receive_buffer_size(&c.tcp_stream, SIZE_IN_BYTES) {
+            Err(e) => {
+                event!(
+                    Level::ERROR,
+                    message = "Failed to set the tcp stream's receive buffer",
+                    ?e
+                );
 
-        c
+                None
+            },
+            Ok(()) => Some(c),
+        }
     }
 }
 

@@ -195,6 +195,7 @@ mod tests {
     use std::num::{NonZeroU16, NonZeroUsize};
     use std::sync::{Mutex, MutexGuard};
 
+    use color_eyre::eyre;
     use mockall::lazy_static;
 
     use crate::cli::mock_matches_wrap::get_matches_context;
@@ -217,7 +218,7 @@ mod tests {
         }
     }
 
-    fn parse_factory(input: &'static str) -> Result<Config, color_eyre::Report> {
+    fn parse_factory(input: &'static str) -> Result<Config, eyre::Report> {
         let _m = get_lock(&MTX);
 
         // mock cli

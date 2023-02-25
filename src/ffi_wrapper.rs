@@ -1,10 +1,14 @@
 use std::io::Error;
-use std::mem::size_of_val;
+use std::mem::{size_of_val, MaybeUninit};
 use std::net::TcpStream;
 use std::os::unix::prelude::AsRawFd;
-use std::ptr::addr_of;
+use std::ptr::{addr_of, null_mut};
 
-use libc::{c_int, c_void, setsockopt, socklen_t, SOL_SOCKET, SO_RCVBUF};
+use color_eyre::eyre;
+use libc::{c_int, c_void, setsockopt, sigaction, sigset_t, socklen_t, SOL_SOCKET, SO_RCVBUF};
+use tracing::Level;
+
+use crate::wrap_and_report;
 
 pub(crate) fn set_receive_buffer_size(
     tcp_stream: &TcpStream,
@@ -27,6 +31,29 @@ pub(crate) fn set_receive_buffer_size(
 
     if r == -1 {
         return Err(Error::last_os_error());
+    }
+
+    Ok(())
+}
+
+pub(crate) fn set_up_handler(
+    signum: c_int,
+    handler: extern "C" fn(_: c_int),
+) -> Result<(), eyre::Report> {
+    let sa = sigaction {
+        sa_sigaction: handler as usize,
+        sa_flags: 0,
+        sa_mask: unsafe { MaybeUninit::<sigset_t>::zeroed().assume_init() },
+        #[cfg(not(target_os = "macos"))]
+        sa_restorer: None,
+    };
+
+    if unsafe { sigaction(signum, &sa, null_mut()) } == -1 {
+        return Err(wrap_and_report!(
+            Level::ERROR,
+            Error::last_os_error(),
+            "Failure to install signal handler"
+        ));
     }
 
     Ok(())
