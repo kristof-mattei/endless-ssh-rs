@@ -1,11 +1,13 @@
-use std::num::{NonZeroU16, NonZeroU32, NonZeroUsize};
+use std::{
+    env,
+    ffi::OsString,
+    num::{NonZeroU16, NonZeroU32, NonZeroUsize},
+};
 
 use clap::parser::ValueSource;
 use clap::{command, value_parser, Arg, ArgAction, Command};
 use color_eyre::eyre::{self, WrapErr};
 use lazy_static::lazy_static;
-use mockall::automock;
-use mockall_double::double;
 use tracing::{event, Level};
 
 use crate::config::{
@@ -88,24 +90,16 @@ fn build_clap_matcher() -> Command {
         )
 }
 
-#[automock]
-mod matches_wrap {
-
-    use super::build_clap_matcher;
-
-    #[cfg_attr(test, allow(dead_code))]
-    pub(crate) fn get_matches() -> std::result::Result<clap::ArgMatches, clap::Error> {
-        let matcher = build_clap_matcher();
-
-        matcher.try_get_matches()
-    }
+pub(crate) fn parse_cli() -> Result<Config, eyre::Error> {
+    parse_cli_from(env::args_os())
 }
 
-#[double]
-use self::matches_wrap as matches;
-
-pub(crate) fn parse_cli() -> Result<Config, eyre::Error> {
-    let matches = matches::get_matches()?;
+fn parse_cli_from<I, T>(from: I) -> Result<Config, eyre::Error>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
+    let matches = build_clap_matcher().try_get_matches_from(from)?;
 
     let mut config = Config::new();
 
@@ -190,45 +184,18 @@ where
 #[cfg(test)]
 mod tests {
     use std::num::{NonZeroU16, NonZeroUsize};
-    use std::sync::{Mutex, MutexGuard};
 
     use color_eyre::eyre;
-    use mockall::lazy_static;
 
-    use crate::cli::mock_matches_wrap::get_matches_context;
-    use crate::cli::{build_clap_matcher, parse_cli};
     use crate::config::{BindFamily, Config};
 
-    lazy_static! {
-        static ref MTX: Mutex<()> = Mutex::new(());
-    }
-
-    // When a test panics, it will poison the Mutex. Since we don't actually
-    // care about the state of the data we ignore that it is poisoned and grab
-    // the lock regardless.  If you just do `let _m = &MTX.lock().unwrap()`, one
-    // test panicking will cause all other tests that try and acquire a lock on
-    // that Mutex to also panic.
-    fn get_lock(m: &'static Mutex<()>) -> MutexGuard<'static, ()> {
-        match m.lock() {
-            Ok(guard) => guard,
-            Err(poisoned) => poisoned.into_inner(),
-        }
-    }
+    use super::parse_cli_from;
 
     fn parse_factory(input: &'static str) -> Result<Config, eyre::Report> {
-        let _m = get_lock(&MTX);
-
-        // mock cli
-        let ctx = get_matches_context();
-
         // fake input
         let command_line = input.split_whitespace().collect::<Vec<&str>>();
 
-        // mock
-        ctx.expect()
-            .returning_st(move || build_clap_matcher().try_get_matches_from(&command_line));
-
-        parse_cli()
+        parse_cli_from(command_line)
     }
 
     #[test]
