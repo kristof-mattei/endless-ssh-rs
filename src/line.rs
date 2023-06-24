@@ -7,9 +7,6 @@ mod rand_wrap {
     use rand::Rng;
 
     #[cfg_attr(test, allow(dead_code))]
-    // delete when https://github.com/rust-lang/rust-clippy/pull/9486
-    // is merged in
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn rand_in_range<T, R>(range: R) -> T
     where
         T: SampleUniform + 'static,
