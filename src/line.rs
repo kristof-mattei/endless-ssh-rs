@@ -1,42 +1,59 @@
+use ::rand::distributions::uniform::{SampleRange, SampleUniform};
 use mockall::automock;
-use mockall_double::double;
+use rand::{rngs::ThreadRng, Rng};
 
 #[automock]
-mod rand_wrap {
-    use rand::distributions::uniform::{SampleRange, SampleUniform};
-    use rand::Rng;
+trait GetRandom {
+    fn gen_range<T, R>(&mut self, range: R) -> T
+    where
+        T: SampleUniform + 'static,
+        R: SampleRange<T> + 'static;
+}
 
-    #[cfg_attr(test, allow(dead_code))]
-    pub(crate) fn rand_in_range<T, R>(range: R) -> T
+struct GenRange<R> {
+    rng: R,
+}
+
+impl GetRandom for GenRange<ThreadRng> {
+    fn gen_range<T, R>(&mut self, range: R) -> T
     where
         T: SampleUniform + 'static,
         R: SampleRange<T> + 'static,
     {
-        ::rand::thread_rng().gen_range(range)
+        self.rng.gen_range(range)
     }
 }
 
-#[double]
-use self::rand_wrap as rand;
+pub fn randline(maxlen: usize) -> Vec<u8> {
+    randline_from(
+        GenRange {
+            rng: ::rand::thread_rng(),
+        },
+        maxlen,
+    )
+}
 
-pub(crate) fn randline(maxlen: usize) -> Vec<u8> {
+fn randline_from(mut rng: impl GetRandom, maxlen: usize) -> Vec<u8> {
     // original did 3 + rand(s) % (maxlen - 2)
     // so if rand(2) was 47, maxlen 50, the outcome is 3 + (47 % 48)
     // we have a length of 50
     // with a range we don't need to do - 2
-    let len = rand::rand_in_range(3..=maxlen);
+    let len = rng.gen_range(3..=maxlen);
 
     let mut buffer = vec![0u8; len];
 
     for l in buffer.iter_mut().take(len - 2) {
         // ASCII 32 .. (including) ASCII 126
-        *l = rand::rand_in_range(32..=126);
+        *l = rng.gen_range(32..=126);
     }
 
-    buffer[len - 2] = 13;
-    buffer[len - 1] = 10;
+    buffer
+        .get_mut(len - 2..len)
+        .expect("minimum length is 3")
+        .copy_from_slice(&[13u8, 10]);
 
-    if len > 3 && buffer[0..4] == [b'S', b'S', b'H', b'-'] {
+    // ensure start doesn't begin with "SSH-"
+    if buffer.starts_with(&[b'S', b'S', b'H', b'-']) {
         buffer[0] = b'X';
     }
 
@@ -46,45 +63,32 @@ pub(crate) fn randline(maxlen: usize) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use std::ops::RangeInclusive;
-    use std::sync::{Mutex, MutexGuard};
 
-    use mockall::lazy_static;
+    use mockall_double::double;
 
-    use crate::line::{mock_rand_wrap as rand, randline};
+    use crate::line::randline_from;
 
-    lazy_static! {
-        static ref MTX: Mutex<()> = Mutex::new(());
-    }
-
-    // When a test panics, it will poison the Mutex. Since we don't actually
-    // care about the state of the data we ignore that it is poisoned and grab
-    // the lock regardless.  If you just do `let _m = &MTX.lock().unwrap()`, one
-    // test panicking will cause all other tests that try and acquire a lock on
-    // that Mutex to also panic.
-    fn get_lock(m: &'static Mutex<()>) -> MutexGuard<'static, ()> {
-        match m.lock() {
-            Ok(guard) => guard,
-            Err(poisoned) => poisoned.into_inner(),
-        }
-    }
+    #[double]
+    use crate::line::GetRandom;
 
     #[test]
     fn test_randline() {
-        let _m = get_lock(&MTX);
-
         // given
         // mock rng
-        let ctx = rand::rand_in_range_context();
+        let mut mock_rng = GetRandom::new();
 
         // set random length to requested maximum length
-        ctx.expect::<usize, RangeInclusive<usize>>()
+        mock_rng
+            .expect_gen_range::<usize, RangeInclusive<usize>>()
             .returning(|x| *x.end());
 
         // every byte will be 97, or 'a'
-        ctx.expect::<u8, RangeInclusive<u8>>().return_const(b'a');
+        mock_rng
+            .expect_gen_range::<u8, RangeInclusive<u8>>()
+            .return_const(b'a');
 
         let max_len = 50;
-        let randline = randline(max_len);
+        let randline = randline_from(mock_rng, max_len);
 
         // then
         // did we get a line our length?
@@ -96,21 +100,20 @@ mod tests {
 
     #[test]
     fn test_randline_carriage_return_line_feed() {
-        let _m = get_lock(&MTX);
-
         // given
         // mock rng
-        let ctx = rand::rand_in_range_context();
+        let mut ctx = GetRandom::new();
 
         // set random length to requested maximum length
-        ctx.expect::<usize, RangeInclusive<usize>>()
+        ctx.expect_gen_range::<usize, RangeInclusive<usize>>()
             .returning(|x| *x.end());
 
-        ctx.expect::<u8, RangeInclusive<u8>>().return_const(b'a');
+        ctx.expect_gen_range::<u8, RangeInclusive<u8>>()
+            .return_const(b'a');
 
         // when
         let max_len = 50;
-        let randline = randline(max_len);
+        let randline = randline_from(ctx, max_len);
 
         // then
         // did we get a line our length?
@@ -122,33 +125,31 @@ mod tests {
 
     #[test]
     fn test_randline_no_ssh_prefix() {
-        let _m = get_lock(&MTX);
-
         // given
         // mock rng
-        let ctx = rand::rand_in_range_context();
+        let mut ctx = GetRandom::new();
 
         // set random length to requested maximum length
-        ctx.expect::<usize, RangeInclusive<usize>>()
+        ctx.expect_gen_range::<usize, RangeInclusive<usize>>()
             .returning(|x| *x.end());
 
         let fake_randoms = [b'S', b'S', b'H', b'-'];
 
-        ctx.expect::<u8, RangeInclusive<u8>>()
+        ctx.expect_gen_range::<u8, RangeInclusive<u8>>()
             .times(1)
             .return_const(fake_randoms[0]);
-        ctx.expect::<u8, RangeInclusive<u8>>()
+        ctx.expect_gen_range::<u8, RangeInclusive<u8>>()
             .times(1)
             .return_const(fake_randoms[1]);
-        ctx.expect::<u8, RangeInclusive<u8>>()
+        ctx.expect_gen_range::<u8, RangeInclusive<u8>>()
             .times(1)
             .return_const(fake_randoms[2]);
-        ctx.expect::<u8, RangeInclusive<u8>>()
+        ctx.expect_gen_range::<u8, RangeInclusive<u8>>()
             .times(1)
             .return_const(fake_randoms[3]);
 
         let max_len = 6;
-        let randline = randline(max_len);
+        let randline = randline_from(ctx, max_len);
 
         assert_eq!(randline.len(), max_len);
 
