@@ -22,8 +22,8 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "env": {
-                "RUST_BACKTRACE": "1",
-                "RUST_LOG": "endless_ssh_rs=trace"
+                "RUST_BACKTRACE": "full",
+                "RUST_LOG": "trace,endless_ssh_rs=trace"
             }
         },
         {
@@ -44,8 +44,8 @@
             "args": ["wrong-params"],
             "cwd": "${workspaceFolder}",
             "env": {
-                "RUST_BACKTRACE": "1",
-                "RUST_LOG": "endless_ssh_rs=trace"
+                "RUST_BACKTRACE": "full",
+                "RUST_LOG": "trace,endless_ssh_rs=trace"
             }
         },
         {
@@ -66,8 +66,8 @@
             "args": ["-h"],
             "cwd": "${workspaceFolder}",
             "env": {
-                "RUST_BACKTRACE": "1",
-                "RUST_LOG": "endless_ssh_rs=trace"
+                "RUST_BACKTRACE": "full",
+                "RUST_LOG": "trace,endless_ssh_rs=trace"
             }
         },
         {
@@ -89,8 +89,8 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "env": {
-                "RUST_BACKTRACE": "1",
-                "RUST_LOG": "endless_ssh_rs=trace"
+                "RUST_BACKTRACE": "full",
+                "RUST_LOG": "trace,endless_ssh_rs=trace"
             }
         }
     ]
