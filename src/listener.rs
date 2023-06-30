@@ -10,7 +10,6 @@ use tracing::{event, Level};
 use crate::config::{BindFamily, Config};
 use crate::timeout::Timeout;
 
-#[derive(Debug)]
 pub(crate) struct Listener {
     listener: TcpListener,
     fds: pollfd,
