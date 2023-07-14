@@ -22,7 +22,6 @@ mod traits;
 use std::env;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use color_eyre::eyre;
 use time::OffsetDateTime;
 use tracing::metadata::LevelFilter;
 use tracing::{event, Level};
@@ -39,7 +38,9 @@ static RUNNING: AtomicBool = AtomicBool::new(true);
 static DUMPSTATS: AtomicBool = AtomicBool::new(false);
 
 #[allow(clippy::too_many_lines)]
-fn main() -> Result<(), eyre::Report> {
+fn main() -> Result<(), color_eyre::Report> {
+    color_eyre::install()?;
+
     env::set_var("RUST_BACKTRACE", "full");
 
     color_eyre::install().unwrap();
