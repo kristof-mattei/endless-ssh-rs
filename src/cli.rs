@@ -1,8 +1,6 @@
-use std::{
-    env,
-    ffi::OsString,
-    num::{NonZeroU16, NonZeroU32, NonZeroUsize},
-};
+use std::env;
+use std::ffi::OsString;
+use std::num::{NonZeroU16, NonZeroU32, NonZeroUsize};
 
 use clap::parser::ValueSource;
 use clap::{command, value_parser, Arg, ArgAction, Command};
@@ -167,7 +165,9 @@ where
     T: Clone + Send + Sync + 'static,
 {
     // our CLI has defaults, so we check if the user has provided a value
-    let Some(ValueSource::CommandLine) = matches.value_source(key) else { return None; };
+    let Some(ValueSource::CommandLine) = matches.value_source(key) else {
+        return None;
+    };
 
     // NOTE: we might change this later to always use the user's input, as we might want this module
     // to drive the config's defaults.
@@ -187,9 +187,8 @@ mod tests {
 
     use color_eyre::eyre;
 
-    use crate::config::{BindFamily, Config};
-
     use super::parse_cli_from;
+    use crate::config::{BindFamily, Config};
 
     fn parse_factory(input: &'static str) -> Result<Config, eyre::Report> {
         // fake input
