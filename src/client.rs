@@ -22,7 +22,7 @@ impl std::fmt::Debug for Client {
             .field("bytes_sent", &self.bytes_sent)
             .field("addr", &self.addr)
             // .field("tcp_stream", &self.tcp_stream)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
