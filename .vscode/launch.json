@@ -22,9 +22,10 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "env": {
-                "RUST_BACKTRACE": "full",
-                "RUST_LOG": "trace,endless_ssh_rs=trace"
-            }
+                "RUST_BACKTRACE": "1",
+                "RUST_LOG": "debug,endless_ssh_rs=trace"
+            },
+            "terminal": "console"
         },
         {
             "type": "lldb",
@@ -45,7 +46,7 @@
             "cwd": "${workspaceFolder}",
             "env": {
                 "RUST_BACKTRACE": "full",
-                "RUST_LOG": "trace,endless_ssh_rs=trace"
+                "RUST_LOG": "debug,endless_ssh_rs=trace"
             }
         },
         {
@@ -67,7 +68,7 @@
             "cwd": "${workspaceFolder}",
             "env": {
                 "RUST_BACKTRACE": "full",
-                "RUST_LOG": "trace,endless_ssh_rs=trace"
+                "RUST_LOG": "debug,endless_ssh_rs=trace"
             }
         },
         {
@@ -89,9 +90,34 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "env": {
-                "RUST_BACKTRACE": "full",
-                "RUST_LOG": "trace,endless_ssh_rs=trace"
-            }
+                "RUST_BACKTRACE": "1",
+                "RUST_LOG": "debug,endless_ssh_rs=trace"
+            },
+            "terminal": "console"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'integration_tests'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=integration_tests",
+                    "--package=endless-ssh-rs"
+                ],
+                "filter": {
+                    "name": "integration_tests",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "RUST_BACKTRACE": "1",
+                "RUST_LOG": "debug,endless_ssh_rs=trace"
+            },
+            "terminal": "console"
         }
     ]
 }
