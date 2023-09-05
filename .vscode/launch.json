@@ -47,7 +47,8 @@
             "env": {
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug,endless_ssh_rs=trace"
-            }
+            },
+            "terminal": "console"
         },
         {
             "type": "lldb",
@@ -69,7 +70,8 @@
             "env": {
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug,endless_ssh_rs=trace"
-            }
+            },
+            "terminal": "console"
         },
         {
             "type": "lldb",
