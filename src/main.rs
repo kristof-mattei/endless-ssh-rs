@@ -1,8 +1,10 @@
-#![cfg_attr(not(debug_assertions), deny(warnings))]
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
-#![forbid(non_ascii_idents)]
+#![deny(warnings)]
+// exceptions
+#![deny(let_underscore_drop)]
+#![deny(non_ascii_idents)]
 #![allow(clippy::uninlined_format_args)]
 
 mod cli;
@@ -118,7 +120,7 @@ fn main() -> Result<(), color_eyre::Report> {
         match accept {
             Ok((socket, addr)) => {
                 if let Err(e) = socket.set_nonblocking(true) {
-                    let _: color_eyre::Report = wrap_and_report!(
+                    let _unused: color_eyre::Report = wrap_and_report!(
                         Level::WARN,
                         e,
                         "Failed to set incoming connect to non-blocking mode, discarding"
