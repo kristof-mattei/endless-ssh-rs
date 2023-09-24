@@ -24,7 +24,7 @@ lazy_static = "1.4.0"
 mockall = "0.11.4"
 mockall_double = "0.3.0"
 rand = "0.8.5"
-time = { version = "0.3.28", features = ["formatting"] }
+time = { version = "0.3.29", features = ["formatting"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.17", features = [
     "env-filter",
