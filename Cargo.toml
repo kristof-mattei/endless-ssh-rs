@@ -26,7 +26,7 @@ mockall_double = "0.3.0"
 rand = "0.8.5"
 time = { version = "0.3.30", features = ["formatting"] }
 tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.17", features = [
+tracing-subscriber = { version = "0.3.18", features = [
     "env-filter",
     "time",
     "tracing-log",
