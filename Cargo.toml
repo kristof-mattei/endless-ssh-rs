@@ -21,7 +21,7 @@ color-eyre = "0.6.2"
 clap = { version = "4.4.11", features = ["cargo"] }
 libc = "0.2.150"
 lazy_static = "1.4.0"
-mockall = "0.11.4"
+mockall = "0.12.0"
 mockall_double = "0.3.0"
 rand = "0.8.5"
 time = { version = "0.3.30", features = ["formatting"] }
