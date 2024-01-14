@@ -1,4 +1,4 @@
-FROM rust:1.73.0@sha256:73af736ea21c14181c257bf674c7095a8bad6343a1eadd327a8bf1ce1c5209b4 as builder
+FROM rust:1.75.0@sha256:c09b1bb91bdc5b44a2f761333c13f9a0f56ef8a677391be117e749be0b7427e8 as builder
 
 ARG TARGET=x86_64-unknown-linux-musl
 ARG APPLICATION_NAME
@@ -33,7 +33,7 @@ COPY src ./src
 RUN --mount=type=cache,id=full-build,target=/build/${APPLICATION_NAME}/target \
     cargo install --path . --target ${TARGET} --root /output
 
-FROM alpine:3.18.4@sha256:eece025e432126ce23f223450a0326fbebde39cdf496a85d8c016293fc851978
+FROM alpine:3.19.0@sha256:51b67269f354137895d43f3b3d810bfacd3945438e94dc5ac55fdac340352f48
 
 ARG APPLICATION_NAME
 
