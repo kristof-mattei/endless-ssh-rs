@@ -21,12 +21,15 @@ mod statistics;
 mod timeout;
 mod traits;
 
-use std::env;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::{
+    env,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
+use dotenvy::dotenv;
 use time::OffsetDateTime;
-use tracing::metadata::LevelFilter;
 use tracing::{event, Level};
+use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
 
@@ -41,19 +44,21 @@ static DUMPSTATS: AtomicBool = AtomicBool::new(false);
 
 #[allow(clippy::too_many_lines)]
 fn main() -> Result<(), color_eyre::Report> {
-    color_eyre::install()?;
+    // set up .env
+    dotenv().expect(".env file not found");
 
-    env::set_var("RUST_BACKTRACE", "full");
+    color_eyre::config::HookBuilder::default()
+        .capture_span_trace_by_default(false)
+        .install()?;
 
-    color_eyre::install().unwrap();
+    let rust_log_value = env::var(EnvFilter::DEFAULT_ENV)
+        .unwrap_or_else(|_| format!("DEBUG,{}=TRACE", env!("CARGO_PKG_NAME").replace('-', "_")));
 
-    tracing_subscriber::fmt::Subscriber::builder()
-        .with_env_filter(
-            EnvFilter::builder()
-                .with_default_directive(LevelFilter::INFO.into())
-                .from_env_lossy(),
-        )
-        .finish()
+    // set up logger
+    tracing_subscriber::registry()
+        .with(EnvFilter::builder().parse_lossy(rust_log_value))
+        .with(tracing_subscriber::fmt::layer())
+        .with(tracing_error::ErrorLayer::default())
         .init();
 
     let mut statistics: Statistics = Statistics::new();
