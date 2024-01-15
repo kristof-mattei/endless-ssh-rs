@@ -5,19 +5,18 @@ use std::num::{NonZeroU16, NonZeroU32, NonZeroUsize};
 use clap::parser::ValueSource;
 use clap::{command, value_parser, Arg, ArgAction, Command};
 use color_eyre::eyre::{self, WrapErr};
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use tracing::{event, Level};
 
 use crate::config::{
     Config, DEFAULT_DELAY_MS, DEFAULT_MAX_CLIENTS, DEFAULT_MAX_LINE_LENGTH, DEFAULT_PORT,
 };
 
-lazy_static! {
-    static ref DEFAULT_PORT_VALUE: String = DEFAULT_PORT.to_string();
-    static ref DEFAULT_MAX_CLIENTS_VALUE: String = DEFAULT_MAX_CLIENTS.to_string();
-    static ref DEFAULT_DELAY_MS_VALUE: String = DEFAULT_DELAY_MS.to_string();
-    static ref DEFAULT_MAX_LINE_LENGTH_VALUE: String = DEFAULT_MAX_LINE_LENGTH.to_string();
-}
+static DEFAULT_PORT_VALUE: Lazy<String> = Lazy::new(|| DEFAULT_PORT.to_string());
+static DEFAULT_MAX_CLIENTS_VALUE: Lazy<String> = Lazy::new(|| DEFAULT_MAX_CLIENTS.to_string());
+static DEFAULT_DELAY_MS_VALUE: Lazy<String> = Lazy::new(|| DEFAULT_DELAY_MS.to_string());
+static DEFAULT_MAX_LINE_LENGTH_VALUE: Lazy<String> =
+    Lazy::new(|| DEFAULT_MAX_LINE_LENGTH.to_string());
 
 fn build_clap_matcher() -> Command {
     command!()
