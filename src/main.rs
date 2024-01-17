@@ -1,12 +1,3 @@
-#![deny(clippy::all)]
-#![deny(clippy::pedantic)]
-#![deny(clippy::cargo)]
-#![deny(warnings)]
-// exceptions
-#![deny(let_underscore_drop)]
-#![deny(non_ascii_idents)]
-#![allow(clippy::uninlined_format_args)]
-
 mod cli;
 mod client;
 mod client_queue;
@@ -21,10 +12,8 @@ mod statistics;
 mod timeout;
 mod traits;
 
-use std::{
-    env,
-    sync::atomic::{AtomicBool, Ordering},
-};
+use std::env;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use dotenvy::dotenv;
 use time::OffsetDateTime;
