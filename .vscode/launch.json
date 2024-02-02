@@ -25,7 +25,8 @@
                 "RUST_BACKTRACE": "1",
                 "RUST_LOG": "DEBUG,endless_ssh_rs=TRACE"
             },
-            "terminal": "integrated"
+            "internalConsoleOptions": "openOnSessionStart",
+            "terminal": "console"
         },
         {
             "type": "lldb",
@@ -48,6 +49,7 @@
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "DEBUG,endless_ssh_rs=TRACE"
             },
+            "internalConsoleOptions": "openOnSessionStart",
             "terminal": "console"
         },
         {
@@ -71,6 +73,7 @@
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "DEBUG,endless_ssh_rs=TRACE"
             },
+            "internalConsoleOptions": "openOnSessionStart",
             "terminal": "console"
         },
         {
@@ -95,7 +98,8 @@
                 "RUST_BACKTRACE": "1",
                 "RUST_LOG": "DEBUG,endless_ssh_rs=TRACE"
             },
-            "terminal": "integrated"
+            "internalConsoleOptions": "openOnSessionStart",
+            "terminal": "console"
         },
         {
             "type": "lldb",
@@ -119,7 +123,8 @@
                 "RUST_BACKTRACE": "1",
                 "RUST_LOG": "DEBUG,endless_ssh_rs=TRACE"
             },
-            "terminal": "integrated"
+            "internalConsoleOptions": "openOnSessionStart",
+            "terminal": "console"
         }
     ]
 }
