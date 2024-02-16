@@ -32,7 +32,7 @@ opt-level = 3
 coverage = []
 
 [dependencies]
-clap = { version = "4.5.0", features = ["cargo"] }
+clap = { version = "4.5.1", features = ["cargo"] }
 color-eyre = "0.6.2"
 dotenvy = "0.15.7"
 libc = "0.2.153"
