@@ -9,7 +9,7 @@
   },
   "engines": {
     "node": ">=20.12.1",
-    "npm": ">=10.5.0"
+    "npm": ">=10.5.1"
   },
   "repository": {
     "type": "git",
@@ -29,7 +29,7 @@
     "@semantic-release/release-notes-generator": "13.0.0",
     "conventional-changelog-conventionalcommits": "7.0.2",
     "prettier": "3.2.5",
-    "semantic-release": "23.0.6"
+    "semantic-release": "23.0.7"
   },
   "publishConfig": {
     "access": "restricted"
