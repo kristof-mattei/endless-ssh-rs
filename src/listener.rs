@@ -71,6 +71,9 @@ impl Listener {
         let r = unsafe {
             poll(
                 addr_of_mut!(self.fds),
+                #[cfg(target_arch = "aarch64")]
+                u32::from(can_accept_more_clients),
+                #[cfg(not(target_arch = "aarch64"))]
                 u64::from(can_accept_more_clients),
                 timeout.as_c_timeout(),
             )
