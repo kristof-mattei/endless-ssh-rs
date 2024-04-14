@@ -16,6 +16,7 @@ RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/
     build-essential \
     musl-dev \
     musl-tools \
+    libc6-dev-arm64-cross \
     gcc-aarch64-linux-gnu
 
 # The following block
