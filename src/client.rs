@@ -14,6 +14,27 @@ pub(crate) struct Client {
     pub(crate) tcp_stream: TcpStream,
 }
 
+impl std::cmp::Eq for Client {}
+
+impl std::cmp::PartialEq for Client {
+    fn eq(&self, other: &Self) -> bool {
+        self.addr == other.addr
+    }
+}
+
+impl std::cmp::Ord for Client {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // flipped to get the oldest first
+        other.send_next.cmp(&self.send_next)
+    }
+}
+
+impl std::cmp::PartialOrd for Client {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl std::fmt::Debug for Client {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Client")

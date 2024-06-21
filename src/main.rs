@@ -34,7 +34,7 @@ static DUMPSTATS: AtomicBool = AtomicBool::new(false);
 #[allow(clippy::too_many_lines)]
 fn main() -> Result<(), color_eyre::Report> {
     // set up .env
-    dotenv().expect(".env file not found");
+    let _r = dotenv();
 
     color_eyre::config::HookBuilder::default()
         .capture_span_trace_by_default(false)
@@ -52,16 +52,16 @@ fn main() -> Result<(), color_eyre::Report> {
 
     let mut statistics: Statistics = Statistics::new();
 
-    let mut config = parse_cli().map_err(|e| {
+    let mut config = parse_cli().map_err(|error| {
         // this prints the error in color and exits
         // can't do anything else until
         // https://github.com/clap-rs/clap/issues/2914
         // is merged in
-        if let Some(clap_error) = e.downcast_ref::<clap::error::Error>() {
+        if let Some(clap_error) = error.downcast_ref::<clap::error::Error>() {
             clap_error.exit();
         }
 
-        e
+        error
     })?;
 
     config.log();
@@ -129,7 +129,7 @@ fn main() -> Result<(), color_eyre::Report> {
                 let client = Client::initialize(socket, addr, send_next);
 
                 if let Some(c) = client {
-                    clients.push_back(c);
+                    clients.push(c);
 
                     event!(
                         Level::INFO,
