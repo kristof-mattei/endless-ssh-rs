@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::BinaryHeap;
 
 use time::{Duration, OffsetDateTime};
 use tracing::{event, Level};
@@ -15,11 +15,11 @@ pub(crate) struct QueueProcessingResult {
 }
 
 pub(crate) struct ClientQueue {
-    clients: VecDeque<Client>,
+    clients: BinaryHeap<Client>,
 }
 
 impl std::ops::Deref for ClientQueue {
-    type Target = VecDeque<Client>;
+    type Target = BinaryHeap<Client>;
 
     fn deref(&self) -> &Self::Target {
         &self.clients
@@ -41,14 +41,14 @@ impl Default for ClientQueue {
 impl ClientQueue {
     pub(crate) fn new() -> Self {
         Self {
-            clients: VecDeque::new(),
+            clients: BinaryHeap::new(),
         }
     }
 
     pub(crate) fn destroy_clients(&mut self) -> Duration {
         let mut time_spent = Duration::ZERO;
 
-        for c in self.clients.drain(..) {
+        for c in self.clients.drain() {
             time_spent += c.time_spent;
 
             // c goes out of scope and gets dropped
@@ -67,6 +67,7 @@ impl ClientQueue {
         let mut disconnected_clients_time_spent = Duration::ZERO;
         let mut disconnected_clients_bytes_sent = 0;
         let mut timeout = None;
+
         // just for logging
         let mut processed_clients = 0;
 
@@ -79,7 +80,7 @@ impl ClientQueue {
         );
 
         // iterate over the queue
-        while let Some(potential_client) = self.clients.front() {
+        while let Some(potential_client) = self.clients.peek() {
             event!(
                 Level::TRACE,
                 message = "Considering client",
@@ -93,7 +94,7 @@ impl ClientQueue {
                 // client is a valid candidate to get a line sent
                 let client = self
                     .clients
-                    .pop_front()
+                    .pop()
                     .expect("pop_front() after front() failed, universe is broken");
 
                 event!(Level::DEBUG, message = "Processing", ?client);
@@ -115,7 +116,7 @@ impl ClientQueue {
                         client.send_next = now + config.delay;
 
                         // and put it in the back
-                        self.clients.push_back(client);
+                        self.clients.push(client);
                     },
                     Err((client_time_spent, client_bytes_sent)) => {
                         disconnected_clients_time_spent += client_time_spent;
