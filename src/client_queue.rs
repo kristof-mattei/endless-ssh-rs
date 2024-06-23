@@ -1,3 +1,4 @@
+use std::collections::binary_heap::PeekMut;
 use std::collections::BinaryHeap;
 
 use time::{Duration, OffsetDateTime};
@@ -14,31 +15,31 @@ pub(crate) struct QueueProcessingResult {
     pub(crate) time_spent: Duration,
 }
 
-pub(crate) struct ClientQueue {
-    clients: BinaryHeap<Client>,
+pub(crate) struct ClientQueue<S> {
+    clients: BinaryHeap<Client<S>>,
 }
 
-impl std::ops::Deref for ClientQueue {
-    type Target = BinaryHeap<Client>;
+impl<S> std::ops::Deref for ClientQueue<S> {
+    type Target = BinaryHeap<Client<S>>;
 
     fn deref(&self) -> &Self::Target {
         &self.clients
     }
 }
 
-impl std::ops::DerefMut for ClientQueue {
+impl<S> std::ops::DerefMut for ClientQueue<S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.clients
     }
 }
 
-impl Default for ClientQueue {
+impl<S> Default for ClientQueue<S> {
     fn default() -> Self {
         ClientQueue::new()
     }
 }
 
-impl ClientQueue {
+impl<S> ClientQueue<S> {
     pub(crate) fn new() -> Self {
         Self {
             clients: BinaryHeap::new(),
@@ -57,7 +58,10 @@ impl ClientQueue {
         time_spent
     }
 
-    pub(crate) fn process_queue(&mut self, config: &Config) -> QueueProcessingResult {
+    pub(crate) fn process_queue(&mut self, config: &Config) -> QueueProcessingResult
+    where
+        S: std::io::Write,
+    {
         if self.is_empty() {
             return QueueProcessingResult::default();
         }
@@ -80,58 +84,49 @@ impl ClientQueue {
         );
 
         // iterate over the queue
-        while let Some(potential_client) = self.clients.peek() {
-            event!(
-                Level::TRACE,
-                message = "Considering client",
-                ?potential_client,
-                ?now
-            );
+        while let Some(mut client) = self.clients.peek_mut() {
+            event!(Level::TRACE, message = "Considering client", ?client, ?now);
 
-            if potential_client.send_next <= now {
+            if client.send_next <= now {
                 processed_clients += 1;
-
-                // client is a valid candidate to get a line sent
-                let client = self
-                    .clients
-                    .pop()
-                    .expect("pop_front() after front() failed, universe is broken");
 
                 event!(Level::DEBUG, message = "Processing", ?client);
 
-                match sender::sendline(client, config) {
-                    Ok((mut client, bytes_sent)) => {
-                        client.bytes_sent += bytes_sent;
-                        client.time_spent += config.delay;
+                let address = client.addr;
+                let mut stream = &mut client.tcp_stream;
 
-                        // this will cause all of them to converge
-                        // note that we're using a once-set now
-                        // and not a per-client to ensure  our loop is finite
-                        // if not, we could end up in a situation where processing the loop takes > delay
-                        // in which case when we're around we need to restart
-                        // and never yield back to the connection processor
-                        // we could fix this with an integer trying to determine
-                        // how many we processed but that seems cumbersome
-                        // as we need to determine then how many we processed MINUS how many failed
-                        client.send_next = now + config.delay;
+                if let Ok(bytes_sent) =
+                    sender::sendline(&mut stream, address, config.max_line_length.get())
+                {
+                    client.bytes_sent += bytes_sent;
+                    client.time_spent += config.delay;
 
-                        // and put it in the back
-                        self.clients.push(client);
-                    },
-                    Err((client_time_spent, client_bytes_sent)) => {
-                        disconnected_clients_time_spent += client_time_spent;
-                        disconnected_clients_bytes_sent += client_bytes_sent;
-                    },
+                    // this will cause all of them to converge
+                    // note that we're using a once-set now
+                    // and not a per-client to ensure  our loop is finite
+                    // if not, we could end up in a situation where processing the loop takes > delay
+                    // in which case when we're around we need to restart
+                    // and never yield back to the connection processor
+                    // we could fix this with an integer trying to determine
+                    // how many we processed but that seems cumbersome
+                    // as we need to determine then how many we processed MINUS how many failed
+                    client.send_next = now + config.delay;
+                } else {
+                    disconnected_clients_time_spent += client.time_spent;
+                    disconnected_clients_bytes_sent += client.bytes_sent;
+
+                    // we got a unrecoverable error, remove them from the equasion
+                    PeekMut::pop(client);
                 }
             } else {
                 // no more clients which are processable
                 // the timeout is this client (i.e. the next one coming)
-                timeout = Some(potential_client.send_next - now);
+                timeout = Some(client.send_next - now);
 
                 event!(
                     Level::TRACE,
                     message = "No (more) clients eligible.",
-                    ?potential_client,
+                    ?client,
                     ?timeout,
                     ?now
                 );
@@ -164,5 +159,61 @@ impl ClientQueue {
             bytes_sent: disconnected_clients_bytes_sent,
             time_spent: disconnected_clients_time_spent,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::{sink, ErrorKind};
+    use std::net::IpAddr;
+
+    use time::OffsetDateTime;
+
+    use super::ClientQueue;
+    use crate::client::Client;
+    use crate::config::Config;
+
+    #[test]
+    fn test_write() {
+        let mut queue = ClientQueue::new();
+
+        queue.push(Client::initialize(
+            sink(),
+            std::net::SocketAddr::new(IpAddr::V4([192, 168, 99, 1].into()), 3000),
+            OffsetDateTime::now_utc(),
+        ));
+
+        let _r = queue.process_queue(&Config {
+            ..Default::default()
+        });
+
+        assert_eq!(queue.len(), 1);
+        assert!(queue.pop().unwrap().bytes_sent > 1);
+    }
+    #[test]
+    fn test_error_writing() {
+        struct NoWrite {}
+        impl std::io::Write for NoWrite {
+            fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
+                Err(std::io::Error::from(ErrorKind::NotConnected))
+            }
+
+            fn flush(&mut self) -> std::io::Result<()> {
+                Err(std::io::Error::from(ErrorKind::NotConnected))
+            }
+        }
+        let mut queue = ClientQueue::new();
+
+        queue.push(Client::initialize(
+            NoWrite {},
+            std::net::SocketAddr::new(IpAddr::V4([192, 168, 99, 1].into()), 3000),
+            OffsetDateTime::now_utc(),
+        ));
+
+        let _r = queue.process_queue(&Config {
+            ..Default::default()
+        });
+
+        assert_eq!(queue.len(), 0);
     }
 }
