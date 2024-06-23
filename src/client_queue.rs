@@ -1,4 +1,5 @@
-use std::collections::{binary_heap::PeekMut, BinaryHeap};
+use std::collections::binary_heap::PeekMut;
+use std::collections::BinaryHeap;
 
 use time::{Duration, OffsetDateTime};
 use tracing::{event, Level};
@@ -14,31 +15,31 @@ pub(crate) struct QueueProcessingResult {
     pub(crate) time_spent: Duration,
 }
 
-pub(crate) struct ClientQueue {
-    clients: BinaryHeap<Client>,
+pub(crate) struct ClientQueue<S> {
+    clients: BinaryHeap<Client<S>>,
 }
 
-impl std::ops::Deref for ClientQueue {
-    type Target = BinaryHeap<Client>;
+impl<S> std::ops::Deref for ClientQueue<S> {
+    type Target = BinaryHeap<Client<S>>;
 
     fn deref(&self) -> &Self::Target {
         &self.clients
     }
 }
 
-impl std::ops::DerefMut for ClientQueue {
+impl<S> std::ops::DerefMut for ClientQueue<S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.clients
     }
 }
 
-impl Default for ClientQueue {
+impl<S> Default for ClientQueue<S> {
     fn default() -> Self {
         ClientQueue::new()
     }
 }
 
-impl ClientQueue {
+impl<S> ClientQueue<S> {
     pub(crate) fn new() -> Self {
         Self {
             clients: BinaryHeap::new(),
@@ -57,7 +58,10 @@ impl ClientQueue {
         time_spent
     }
 
-    pub(crate) fn process_queue(&mut self, config: &Config) -> QueueProcessingResult {
+    pub(crate) fn process_queue(&mut self, config: &Config) -> QueueProcessingResult
+    where
+        S: std::io::Write,
+    {
         if self.is_empty() {
             return QueueProcessingResult::default();
         }
@@ -88,7 +92,12 @@ impl ClientQueue {
 
                 event!(Level::DEBUG, message = "Processing", ?client);
 
-                if let Ok(bytes_sent) = sender::sendline(&mut client, config) {
+                let address = client.addr;
+                let mut stream = &mut client.tcp_stream;
+
+                if let Ok(bytes_sent) =
+                    sender::sendline(&mut stream, address, config.max_line_length.get())
+                {
                     client.bytes_sent += bytes_sent;
                     client.time_spent += config.delay;
 
@@ -150,5 +159,61 @@ impl ClientQueue {
             bytes_sent: disconnected_clients_bytes_sent,
             time_spent: disconnected_clients_time_spent,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::{sink, ErrorKind};
+    use std::net::IpAddr;
+
+    use time::OffsetDateTime;
+
+    use super::ClientQueue;
+    use crate::client::Client;
+    use crate::config::Config;
+
+    #[test]
+    fn test_write() {
+        let mut queue = ClientQueue::new();
+
+        queue.push(Client::initialize(
+            sink(),
+            std::net::SocketAddr::new(IpAddr::V4([192, 168, 99, 1].into()), 3000),
+            OffsetDateTime::now_utc(),
+        ));
+
+        let _r = queue.process_queue(&Config {
+            ..Default::default()
+        });
+
+        assert_eq!(queue.len(), 1);
+        assert!(queue.pop().unwrap().bytes_sent > 1);
+    }
+    #[test]
+    fn test_error_writing() {
+        struct NoWrite {}
+        impl std::io::Write for NoWrite {
+            fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
+                Err(std::io::Error::from(ErrorKind::NotConnected))
+            }
+
+            fn flush(&mut self) -> std::io::Result<()> {
+                Err(std::io::Error::from(ErrorKind::NotConnected))
+            }
+        }
+        let mut queue = ClientQueue::new();
+
+        queue.push(Client::initialize(
+            NoWrite {},
+            std::net::SocketAddr::new(IpAddr::V4([192, 168, 99, 1].into()), 3000),
+            OffsetDateTime::now_utc(),
+        ));
+
+        let _r = queue.process_queue(&Config {
+            ..Default::default()
+        });
+
+        assert_eq!(queue.len(), 0);
     }
 }

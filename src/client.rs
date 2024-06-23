@@ -1,41 +1,38 @@
-use std::io::ErrorKind;
-use std::net::{Shutdown, SocketAddr, TcpStream};
+use std::net::SocketAddr;
 
 use time::{Duration, OffsetDateTime};
 use tracing::{event, Level};
 
-use crate::ffi_wrapper::set_receive_buffer_size;
-
-pub(crate) struct Client {
+pub(crate) struct Client<S> {
     pub(crate) time_spent: Duration,
     pub(crate) send_next: OffsetDateTime,
     pub(crate) bytes_sent: usize,
     pub(crate) addr: SocketAddr,
-    pub(crate) tcp_stream: TcpStream,
+    pub(crate) tcp_stream: S,
 }
 
-impl std::cmp::Eq for Client {}
+impl<S> std::cmp::Eq for Client<S> {}
 
-impl std::cmp::PartialEq for Client {
+impl<S> std::cmp::PartialEq for Client<S> {
     fn eq(&self, other: &Self) -> bool {
         self.addr == other.addr
     }
 }
 
-impl std::cmp::Ord for Client {
+impl<S> std::cmp::Ord for Client<S> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         // flipped to get the oldest first
         other.send_next.cmp(&self.send_next)
     }
 }
 
-impl std::cmp::PartialOrd for Client {
+impl<S> std::cmp::PartialOrd for Client<S> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl std::fmt::Debug for Client {
+impl<S> std::fmt::Debug for Client<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Client")
             .field("time_spent", &self.time_spent)
@@ -47,57 +44,27 @@ impl std::fmt::Debug for Client {
     }
 }
 
-impl Client {
+impl<S> Client<S> {
     pub(crate) fn initialize(
-        stream: TcpStream,
+        stream: S,
         addr: SocketAddr,
         start_sending_at: OffsetDateTime,
-    ) -> Option<Self> {
-        const SIZE_IN_BYTES: usize = 1;
-
-        let c = Client {
+    ) -> Self {
+        Self {
             time_spent: Duration::ZERO,
             send_next: start_sending_at,
             addr,
             bytes_sent: 0,
             tcp_stream: stream,
-        };
-
-        // Set the smallest possible recieve buffer. This reduces local
-        // resource usage and slows down the remote end.
-        match set_receive_buffer_size(&c.tcp_stream, SIZE_IN_BYTES) {
-            Err(e) => {
-                event!(
-                    Level::ERROR,
-                    message = "Failed to set the tcp stream's receive buffer",
-                    ?e
-                );
-
-                None
-            },
-            Ok(()) => Some(c),
         }
     }
 }
 
-impl Drop for Client {
+impl<S> Drop for Client<S> {
     /// Destroys self returning time spent annoying this client
     fn drop(&mut self) {
         event!(Level::INFO, message = "Dropping client...", addr = %self.addr, time_spent = %self.time_spent, bytes_sent = self.bytes_sent);
 
-        if let Some(e) = self
-            .tcp_stream
-            .shutdown(Shutdown::Both)
-            .err()
-            .filter(|e| ErrorKind::NotConnected != e.kind())
-        {
-            // if we had an error sending data then the shutdown will not work
-            // because we're already disconnected
-            event!(
-                Level::DEBUG,
-                message = "Error shutting down connection to client, client still discarded",
-                ?e
-            );
-        }
+        // no need to shut down the stream, it happens when it is dropped
     }
 }

@@ -16,6 +16,7 @@ use std::env;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use dotenvy::dotenv;
+use ffi_wrapper::set_receive_buffer_size;
 use time::OffsetDateTime;
 use tracing::{event, Level};
 use tracing_subscriber::layer::SubscriberExt;
@@ -30,6 +31,8 @@ use crate::statistics::Statistics;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
 static DUMPSTATS: AtomicBool = AtomicBool::new(false);
+
+const SIZE_IN_BYTES: usize = 1;
 
 #[allow(clippy::too_many_lines)]
 fn main() -> Result<(), color_eyre::Report> {
@@ -124,21 +127,31 @@ fn main() -> Result<(), color_eyre::Report> {
                     continue;
                 }
 
-                let send_next = OffsetDateTime::now_utc() + config.delay;
-
-                let client = Client::initialize(socket, addr, send_next);
-
-                if let Some(c) = client {
-                    clients.push(c);
-
+                // Set the smallest possible recieve buffer. This reduces local
+                // resource usage and slows down the remote end.
+                if let Err(e) = set_receive_buffer_size(&socket, SIZE_IN_BYTES) {
                     event!(
-                        Level::INFO,
-                        message = "Accepted new client",
-                        addr = ?addr,
-                        current_clients = clients.len(),
-                        max_clients = config.max_clients
+                        Level::ERROR,
+                        message = "Failed to set the tcp stream's receive buffer",
+                        ?e
                     );
-                }
+
+                    // can't do anything anymore
+                    continue;
+                };
+
+                let client =
+                    Client::initialize(socket, addr, OffsetDateTime::now_utc() + config.delay);
+
+                clients.push(client);
+
+                event!(
+                    Level::INFO,
+                    message = "Accepted new client",
+                    addr = ?addr,
+                    current_clients = clients.len(),
+                    max_clients = config.max_clients
+                );
             },
             Err(e) => match e.raw_os_error() {
                 Some(libc::EMFILE) => {
@@ -180,7 +193,7 @@ fn main() -> Result<(), color_eyre::Report> {
 
     statistics.time_spent += time_spent;
 
-    statistics.log_totals(&[]);
+    statistics.log_totals::<()>(&[]);
 
     Ok(())
 }

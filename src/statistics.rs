@@ -24,7 +24,7 @@ impl Statistics {
         }
     }
 
-    pub(crate) fn log_totals<'c>(&self, clients: impl IntoIterator<Item = &'c Client>) {
+    pub(crate) fn log_totals<'c, S: 'c>(&self, clients: impl IntoIterator<Item = &'c Client<S>>) {
         let mut time_spent = self.time_spent;
         let mut bytes_sent = self.bytes_sent;
 
