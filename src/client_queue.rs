@@ -1,4 +1,4 @@
-use std::collections::BinaryHeap;
+use std::collections::{binary_heap::PeekMut, BinaryHeap};
 
 use time::{Duration, OffsetDateTime};
 use tracing::{event, Level};
@@ -80,58 +80,44 @@ impl ClientQueue {
         );
 
         // iterate over the queue
-        while let Some(potential_client) = self.clients.peek() {
-            event!(
-                Level::TRACE,
-                message = "Considering client",
-                ?potential_client,
-                ?now
-            );
+        while let Some(mut client) = self.clients.peek_mut() {
+            event!(Level::TRACE, message = "Considering client", ?client, ?now);
 
-            if potential_client.send_next <= now {
+            if client.send_next <= now {
                 processed_clients += 1;
-
-                // client is a valid candidate to get a line sent
-                let client = self
-                    .clients
-                    .pop()
-                    .expect("pop_front() after front() failed, universe is broken");
 
                 event!(Level::DEBUG, message = "Processing", ?client);
 
-                match sender::sendline(client, config) {
-                    Ok((mut client, bytes_sent)) => {
-                        client.bytes_sent += bytes_sent;
-                        client.time_spent += config.delay;
+                if let Ok(bytes_sent) = sender::sendline(&mut client, config) {
+                    client.bytes_sent += bytes_sent;
+                    client.time_spent += config.delay;
 
-                        // this will cause all of them to converge
-                        // note that we're using a once-set now
-                        // and not a per-client to ensure  our loop is finite
-                        // if not, we could end up in a situation where processing the loop takes > delay
-                        // in which case when we're around we need to restart
-                        // and never yield back to the connection processor
-                        // we could fix this with an integer trying to determine
-                        // how many we processed but that seems cumbersome
-                        // as we need to determine then how many we processed MINUS how many failed
-                        client.send_next = now + config.delay;
+                    // this will cause all of them to converge
+                    // note that we're using a once-set now
+                    // and not a per-client to ensure  our loop is finite
+                    // if not, we could end up in a situation where processing the loop takes > delay
+                    // in which case when we're around we need to restart
+                    // and never yield back to the connection processor
+                    // we could fix this with an integer trying to determine
+                    // how many we processed but that seems cumbersome
+                    // as we need to determine then how many we processed MINUS how many failed
+                    client.send_next = now + config.delay;
+                } else {
+                    disconnected_clients_time_spent += client.time_spent;
+                    disconnected_clients_bytes_sent += client.bytes_sent;
 
-                        // and put it in the back
-                        self.clients.push(client);
-                    },
-                    Err((client_time_spent, client_bytes_sent)) => {
-                        disconnected_clients_time_spent += client_time_spent;
-                        disconnected_clients_bytes_sent += client_bytes_sent;
-                    },
+                    // we got a unrecoverable error, remove them from the equasion
+                    PeekMut::pop(client);
                 }
             } else {
                 // no more clients which are processable
                 // the timeout is this client (i.e. the next one coming)
-                timeout = Some(potential_client.send_next - now);
+                timeout = Some(client.send_next - now);
 
                 event!(
                     Level::TRACE,
                     message = "No (more) clients eligible.",
-                    ?potential_client,
+                    ?client,
                     ?timeout,
                     ?now
                 );
