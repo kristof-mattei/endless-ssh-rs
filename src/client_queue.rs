@@ -191,6 +191,7 @@ mod tests {
         assert!(queue.pop().unwrap().bytes_sent > 1);
     }
     #[test]
+
     fn test_error_writing() {
         struct NoWrite {}
         impl std::io::Write for NoWrite {
