@@ -79,18 +79,18 @@ impl<S> ClientQueue<S> {
 
         event!(
             Level::INFO,
-            message = "Processing (part of) queue",
             total_clients = clients_going_in,
+            "Processing (part of) queue",
         );
 
         // iterate over the queue
         while let Some(mut client) = self.clients.peek_mut() {
-            event!(Level::TRACE, message = "Considering client", ?client, ?now);
+            event!(Level::TRACE, ?client, ?now, "Considering client");
 
             if client.send_next <= now {
                 processed_clients += 1;
 
-                event!(Level::DEBUG, message = "Processing", ?client);
+                event!(Level::DEBUG, ?client, "Processing",);
 
                 let address = client.addr;
                 let mut stream = &mut client.tcp_stream;
@@ -125,10 +125,10 @@ impl<S> ClientQueue<S> {
 
                 event!(
                     Level::TRACE,
-                    message = "No (more) clients eligible.",
                     ?client,
                     ?timeout,
-                    ?now
+                    ?now,
+                    "No (more) clients eligible.",
                 );
 
                 break;
@@ -138,17 +138,17 @@ impl<S> ClientQueue<S> {
         if processed_clients == 0 {
             event!(
                 Level::WARN,
-                message = "Processed no clients. If we just had a new client this is expected"
+                "Processed no clients. If we just had a new client this is expected",
             );
         } else {
             let total_clients = self.clients.len();
 
             event!(
                 Level::INFO,
-                message = "Processed (part of) queue",
                 processed_clients,
                 lost_clients = clients_going_in - total_clients,
                 total_clients = total_clients,
+                "Processed (part of) queue",
             );
         }
 

@@ -63,7 +63,13 @@ impl<S> Client<S> {
 impl<S> Drop for Client<S> {
     /// Destroys self returning time spent annoying this client
     fn drop(&mut self) {
-        event!(Level::INFO, message = "Dropping client...", addr = %self.addr, time_spent = %self.time_spent, bytes_sent = self.bytes_sent);
+        event!(
+            Level::INFO,
+            addr = %self.addr,
+            time_spent = %self.time_spent,
+            bytes_sent = self.bytes_sent,
+            "Dropping client...",
+        );
 
         // no need to shut down the stream, it happens when it is dropped
     }

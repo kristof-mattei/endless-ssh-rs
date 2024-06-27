@@ -13,17 +13,22 @@ pub(crate) fn sendline(
 
     match stream.write_all(bytes.as_slice()) {
         Ok(()) => {
-            event!(Level::INFO, message = "Data sent", ?addr, bytes_sent = ?bytes.len());
+            event!(
+                Level::INFO,
+                ?addr,
+                bytes_sent = ?bytes.len(),
+                "Data sent",
+            );
 
             Ok(bytes.len())
         },
-        Err(e) if e.kind() == ErrorKind::WouldBlock => {
+        Err(error) if error.kind() == ErrorKind::WouldBlock => {
             // EAGAIN, EWOULDBLOCK
             event!(
                 Level::DEBUG,
-                message = "Couldn't send anything to client, will try later",
                 ?addr,
-                ?e
+                ?error,
+                "Couldn't send anything to client, will try later",
             );
 
             Ok(0)
@@ -34,18 +39,13 @@ pub(crate) fn sendline(
                 ErrorKind::ConnectionReset | ErrorKind::TimedOut | ErrorKind::BrokenPipe => {
                     event!(
                         Level::INFO,
-                        message = "Failed to send data to client, client gone",
                         ?addr,
-                        ?error
+                        ?error,
+                        "Failed to send data to client, client gone",
                     );
                 },
                 _ => {
-                    event!(
-                        Level::WARN,
-                        message = "Failed to send data to client",
-                        ?addr,
-                        ?error
-                    );
+                    event!(Level::WARN, ?addr, ?error, "Failed to send data to client");
                 },
             }
 

@@ -94,21 +94,14 @@ fn main() -> Result<(), color_eyre::Report> {
         match listener.wait_poll(clients.len() < config.max_clients.get(), &timeout) {
             Ok(true) => (),
             Ok(false) => continue,
-            Err(e) => {
-                event!(
-                    Level::WARN,
-                    message = "Something went wrong while polling",
-                    ?e
-                );
+            Err(error) => {
+                event!(Level::WARN, ?error, "Something went wrong while polling");
 
                 continue;
             },
         };
 
-        event!(
-            Level::DEBUG,
-            message = "Trying to accept incoming connection"
-        );
+        event!(Level::DEBUG, "Trying to accept incoming connection");
 
         let accept = listener.accept();
 
@@ -116,11 +109,11 @@ fn main() -> Result<(), color_eyre::Report> {
 
         match accept {
             Ok((socket, addr)) => {
-                if let Err(e) = socket.set_nonblocking(true) {
-                    let _unused: color_eyre::Report = wrap_and_report!(
+                if let Err(error) = socket.set_nonblocking(true) {
+                    event!(
                         Level::WARN,
-                        e,
-                        "Failed to set incoming connect to non-blocking mode, discarding"
+                        ?error,
+                        "Failed to set incoming connect to non-blocking mode, discarding",
                     );
 
                     // can't do anything anymore
@@ -129,11 +122,11 @@ fn main() -> Result<(), color_eyre::Report> {
 
                 // Set the smallest possible recieve buffer. This reduces local
                 // resource usage and slows down the remote end.
-                if let Err(e) = set_receive_buffer_size(&socket, SIZE_IN_BYTES) {
+                if let Err(error) = set_receive_buffer_size(&socket, SIZE_IN_BYTES) {
                     event!(
                         Level::ERROR,
-                        message = "Failed to set the tcp stream's receive buffer",
-                        ?e
+                        ?error,
+                        "Failed to set the tcp stream's receive buffer",
                     );
 
                     // can't do anything anymore
@@ -147,18 +140,18 @@ fn main() -> Result<(), color_eyre::Report> {
 
                 event!(
                     Level::INFO,
-                    message = "Accepted new client",
                     addr = ?addr,
                     current_clients = clients.len(),
-                    max_clients = config.max_clients
+                    max_clients = config.max_clients,
+                    "Accepted new client",
                 );
             },
-            Err(e) => match e.raw_os_error() {
+            Err(error) => match error.raw_os_error() {
                 Some(libc::EMFILE) => {
                     // libc::EMFILE is raised when we've reached our per-process
                     // open handles, so we're setting the limit to the current connected clients
                     config.max_clients = clients.len().try_into()?;
-                    event!(Level::WARN, message = "Unable to accept new connection", ?e);
+                    event!(Level::WARN, ?error, "Unable to accept new connection");
                 },
                 Some(
                     libc::ENFILE
@@ -175,13 +168,13 @@ fn main() -> Result<(), color_eyre::Report> {
                     // libc::ENOMEM: no memory
                     // libc::EPROTO: protocol error
                     // all are non fatal
-                    event!(Level::INFO, message = "Unable to accept new connection", ?e);
+                    event!(Level::INFO, ?error, "Unable to accept new connection");
                 },
                 _ => {
                     // FATAL
                     return Err(wrap_and_report!(
                         Level::ERROR,
-                        e,
+                        error,
                         "Unable to accept new connection"
                     ));
                 },
