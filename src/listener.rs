@@ -38,7 +38,7 @@ impl Listener {
             .set_nonblocking(true)
             .wrap_err("Failed to set listener to non-blocking")?;
 
-        event!(Level::DEBUG, message = "Bound and listening!", ?listener);
+        event!(Level::DEBUG, ?listener, "Bound and listening!");
 
         let fd = listener.as_raw_fd();
 
@@ -60,12 +60,13 @@ impl Listener {
         // Wait for next event
         event!(
             Level::DEBUG,
-            message = if can_accept_more_clients {
+            ?timeout,
+            "{}",
+            if can_accept_more_clients {
                 "Waiting for data on socket or timeout expiration"
             } else {
                 "Maximum clients reached, just waiting until timeout expires"
             },
-            ?timeout,
         );
 
         let r = unsafe {
@@ -94,18 +95,12 @@ impl Listener {
             },
             0 => {
                 // ppoll returning 0 means timeout expiration
-                event!(
-                    Level::DEBUG,
-                    message = "Ending poll because of timeout expiraton"
-                );
+                event!(Level::DEBUG, "Ending poll because of timeout expiraton");
 
                 Ok(false)
             },
             1 if self.fds.revents & POLLIN == POLLIN => {
-                event!(
-                    Level::DEBUG,
-                    message = "Ending poll because of incoming connection"
-                );
+                event!(Level::DEBUG, "Ending poll because of incoming connection");
 
                 Ok(true)
             },

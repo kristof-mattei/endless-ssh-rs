@@ -35,7 +35,6 @@ impl Statistics {
 
         event!(
             Level::INFO,
-            message = "TOTALS",
             connects = self.connects,
             time_spent = format_args!(
                 "{} week(s), {} day(s), {} hour(s), {} minute(s), {}.{:03} second(s)",
@@ -47,6 +46,7 @@ impl Statistics {
                 time_spent.subsec_milliseconds()
             ),
             ?bytes_sent,
+            "TOTALS",
         );
     }
 }
