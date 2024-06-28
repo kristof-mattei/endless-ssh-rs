@@ -73,7 +73,7 @@ impl<S> ClientQueue<S> {
         let mut timeout = None;
 
         // just for logging
-        let mut processed_clients = 0;
+        let mut processed_clients: usize = 0;
 
         let clients_going_in = self.clients.len();
 
@@ -83,7 +83,6 @@ impl<S> ClientQueue<S> {
             "Processing (part of) queue",
         );
 
-        // iterate over the queue
         while let Some(mut client) = self.clients.peek_mut() {
             event!(Level::TRACE, ?client, ?now, "Considering client");
 
@@ -177,7 +176,7 @@ mod tests {
     fn test_write() {
         let mut queue = ClientQueue::new();
 
-        queue.push(Client::initialize(
+        queue.push(Client::new(
             sink(),
             std::net::SocketAddr::new(IpAddr::V4([192, 168, 99, 1].into()), 3000),
             OffsetDateTime::now_utc(),
@@ -205,7 +204,7 @@ mod tests {
         }
         let mut queue = ClientQueue::new();
 
-        queue.push(Client::initialize(
+        queue.push(Client::new(
             NoWrite {},
             std::net::SocketAddr::new(IpAddr::V4([192, 168, 99, 1].into()), 3000),
             OffsetDateTime::now_utc(),

@@ -45,11 +45,7 @@ impl<S> std::fmt::Debug for Client<S> {
 }
 
 impl<S> Client<S> {
-    pub(crate) fn initialize(
-        stream: S,
-        addr: SocketAddr,
-        start_sending_at: OffsetDateTime,
-    ) -> Self {
+    pub(crate) fn new(stream: S, addr: SocketAddr, start_sending_at: OffsetDateTime) -> Self {
         Self {
             time_spent: Duration::ZERO,
             send_next: start_sending_at,
