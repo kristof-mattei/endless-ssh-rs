@@ -11,29 +11,31 @@ mod signal_handlers;
 mod statistics;
 mod timeout;
 mod traits;
+mod utils;
 
 use std::env;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
 
+use client::Client;
+use client_queue::process_clients_forever;
 use dotenvy::dotenv;
+use tokio::net::TcpStream;
+use tokio::sync::{RwLock, Semaphore};
+use tokio::time::timeout;
+use tokio_util::sync::CancellationToken;
 use tracing::{event, Level};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
 
 use crate::cli::parse_cli;
-use crate::client_queue::ClientQueue;
-use crate::listener::Listener;
 use crate::statistics::Statistics;
-
-static RUNNING: AtomicBool = AtomicBool::new(true);
-static DUMPSTATS: AtomicBool = AtomicBool::new(false);
 
 const SIZE_IN_BYTES: usize = 1;
 
-#[allow(clippy::too_many_lines)]
 fn main() -> Result<(), color_eyre::Report> {
-    // set up .env
+    // set up .env, if it fails, user didn't provide any
     let _r = dotenv();
 
     color_eyre::config::HookBuilder::default()
@@ -41,18 +43,29 @@ fn main() -> Result<(), color_eyre::Report> {
         .install()?;
 
     let rust_log_value = env::var(EnvFilter::DEFAULT_ENV)
-        .unwrap_or_else(|_| format!("DEBUG,{}=TRACE", env!("CARGO_PKG_NAME").replace('-', "_")));
+        .unwrap_or_else(|_| format!("INFO,{}=TRACE", env!("CARGO_PKG_NAME").replace('-', "_")));
 
     // set up logger
+    // from_env defaults to RUST_LOG
     tracing_subscriber::registry()
-        .with(EnvFilter::builder().parse_lossy(rust_log_value))
+        .with(EnvFilter::builder().parse(rust_log_value).unwrap())
         .with(tracing_subscriber::fmt::layer())
         .with(tracing_error::ErrorLayer::default())
         .init();
 
-    let mut statistics: Statistics = Statistics::new();
+    // initialize the runtime
+    let rt = tokio::runtime::Runtime::new().unwrap();
 
-    let mut config = parse_cli().map_err(|error| {
+    // start service
+    let result: Result<(), color_eyre::Report> = rt.block_on(start_tasks());
+
+    result
+}
+
+async fn start_tasks() -> Result<(), color_eyre::Report> {
+    let statistics = Arc::new(RwLock::new(Statistics::new()));
+
+    let config = Arc::new(parse_cli().map_err(|error| {
         // this prints the error in color and exits
         // can't do anything else until
         // https://github.com/clap-rs/clap/issues/2914
@@ -62,52 +75,119 @@ fn main() -> Result<(), color_eyre::Report> {
         }
 
         error
-    })?;
+    })?);
 
     config.log();
 
-    // Install the signal handlers
-    signal_handlers::setup_handlers()?;
+    // clients channel
+    let (client_sender, client_receiver) =
+        tokio::sync::mpsc::channel::<Client<TcpStream>>(config.max_clients.into());
 
-    let mut clients = ClientQueue::new();
+    // available slots semaphore
+    let semaphore = Arc::new(Semaphore::new(config.max_clients.into()));
 
-    let mut listener = Listener::start_listening(&config)?;
+    // this channel is used to communicate between
+    // tasks and this function, in the case that a task fails, they'll send a message on the shutdown channel
+    // after which we'll gracefully terminate other services
+    let token = CancellationToken::new();
 
-    while RUNNING.load(Ordering::SeqCst) {
-        if DUMPSTATS.load(Ordering::SeqCst) {
-            // print stats requested (SIGUSR1)
-            statistics.log_totals(&(*clients));
-            DUMPSTATS.store(false, Ordering::SeqCst);
-        }
+    let mut tasks = tokio::task::JoinSet::new();
+    {
+        let token = token.clone();
+        let config = config.clone();
+        let client_sender = client_sender.clone();
+        let semaphore = semaphore.clone();
+        let statistics = statistics.clone();
 
-        // Enqueue clients that are due for another message
-        let queue_processing_result = clients.process_queue(&config);
-
-        statistics.bytes_sent += queue_processing_result.bytes_sent;
-        statistics.time_spent += queue_processing_result.time_spent;
-
-        let timeout = queue_processing_result.timeout.into();
-
-        match listener.wait_poll(clients.len() < config.max_clients.get(), &timeout) {
-            Ok(true) => {
-                event!(Level::DEBUG, "Trying to accept incoming connection");
-
-                listener.accept(&mut clients, &mut statistics, &mut config)?;
-            },
-            Ok(false) => continue,
-            Err(error) => {
-                event!(Level::WARN, ?error, "Something went wrong while polling");
-
-                continue;
-            },
-        };
+        tasks.spawn(listener::listen_forever(
+            client_sender,
+            semaphore,
+            config,
+            token,
+            statistics,
+        ));
     }
 
-    let time_spent = clients.destroy_clients();
+    {
+        let token = token.clone();
+        let config = config.clone();
+        let client_sender = client_sender.clone();
+        let semaphore = semaphore.clone();
+        let statistics = statistics.clone();
 
-    statistics.time_spent += time_spent;
+        tasks.spawn(async move {
+            let _guard = token.clone().drop_guard();
 
-    statistics.log_totals::<()>(&[]);
+            // listen to new connection channel, convert into client, push to client channel
+            match process_clients_forever(
+                &client_sender,
+                client_receiver,
+                &semaphore,
+                token,
+                &statistics,
+                &config,
+            )
+            .await
+            {
+                Ok(()) => {
+                    // carry on
+                },
+                Err(error) => {
+                    event!(Level::ERROR, ?error);
+                },
+            }
+        });
+    }
+
+    {
+        let token = token.clone();
+        let statistics = statistics.clone();
+
+        tasks.spawn(async move {
+            let _guard = token.clone().drop_guard();
+
+            while let Some(()) = signal_handlers::wait_for_sigusr1().await {
+                statistics.read().await.log_totals::<()>(&[]);
+            }
+        });
+    }
+
+    // now we wait forever for either
+    // * SIGTERM
+    // * ctrl + c (SIGINT)
+    // * a message on the shutdown channel, sent either by the server task or
+    // another task when they complete (which means they failed)
+    tokio::select! {
+        _ = signal_handlers::wait_for_sigint() => {
+            // we completed because ...
+            event!(Level::WARN, message = "CTRL+C detected, stopping all tasks");
+        },
+        _ = signal_handlers::wait_for_sigterm() => {
+            // we completed because ...
+            event!(Level::WARN, message = "Sigterm detected, stopping all tasks");
+        },
+        () = token.cancelled() => {
+            event!(Level::WARN, "Underlying task stopped, stopping all others tasks");
+        },
+    };
+
+    // backup, in case we forgot a dropguard somewhere
+    token.cancel();
+
+    // wait for the task that holds the server to exit gracefully
+    // it listens to shutdown_send
+    if timeout(Duration::from_millis(10000), tasks.shutdown())
+        .await
+        .is_err()
+    {
+        event!(Level::ERROR, "Tasks didn't stop within allotted time!");
+    }
+
+    {
+        (statistics.read().await).log_totals::<()>(&[]);
+    }
+
+    event!(Level::INFO, "Goodbye");
 
     Ok(())
 }

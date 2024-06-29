@@ -4,9 +4,11 @@ use tracing::{event, Level};
 use crate::client::Client;
 
 pub(crate) struct Statistics {
-    pub(crate) connects: u64,
-    pub(crate) time_spent: Duration,
     pub(crate) bytes_sent: usize,
+    pub(crate) connects: u64,
+    pub(crate) lost_clients: u64,
+    pub(crate) processed_clients: u64,
+    pub(crate) time_spent: Duration,
 }
 
 impl Default for Statistics {
@@ -20,10 +22,13 @@ impl Statistics {
         Self {
             bytes_sent: 0,
             connects: 0,
+            lost_clients: 0,
+            processed_clients: 0,
             time_spent: Duration::ZERO,
         }
     }
 
+    #[allow(unused)]
     pub(crate) fn log_totals<'c, S: 'c>(&self, clients: impl IntoIterator<Item = &'c Client<S>>) {
         let mut time_spent = self.time_spent;
         let mut bytes_sent = self.bytes_sent;

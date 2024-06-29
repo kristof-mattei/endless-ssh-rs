@@ -4,18 +4,17 @@ use tracing::{event, Level};
 
 use crate::line::randline;
 
-pub(crate) fn sendline(
-    stream: &mut impl std::io::Write,
-    addr: impl std::fmt::Debug,
+pub(crate) async fn sendline(
+    target: &mut (impl tokio::io::AsyncWriteExt + std::marker::Unpin + std::fmt::Debug),
     max_length: usize,
 ) -> Result<usize, ()> {
     let bytes = randline(max_length);
 
-    match stream.write_all(bytes.as_slice()) {
+    match target.write_all(bytes.as_slice()).await {
         Ok(()) => {
             event!(
-                Level::INFO,
-                ?addr,
+                Level::TRACE,
+                ?target,
                 bytes_sent = ?bytes.len(),
                 "Data sent",
             );
@@ -26,7 +25,7 @@ pub(crate) fn sendline(
             // EAGAIN, EWOULDBLOCK
             event!(
                 Level::DEBUG,
-                ?addr,
+                ?target,
                 ?error,
                 "Couldn't send anything to client, will try later",
             );
@@ -39,13 +38,18 @@ pub(crate) fn sendline(
                 ErrorKind::ConnectionReset | ErrorKind::TimedOut | ErrorKind::BrokenPipe => {
                     event!(
                         Level::INFO,
-                        ?addr,
+                        ?target,
                         ?error,
                         "Failed to send data to client, client gone",
                     );
                 },
                 _ => {
-                    event!(Level::WARN, ?addr, ?error, "Failed to send data to client");
+                    event!(
+                        Level::WARN,
+                        ?target,
+                        ?error,
+                        "Failed to send data to client"
+                    );
                 },
             }
 
@@ -56,92 +60,115 @@ pub(crate) fn sendline(
 
 #[cfg(test)]
 mod tests {
-    use std::{io::ErrorKind, net::IpAddr};
+    use std::io::ErrorKind;
 
     use crate::sender::sendline;
 
+    #[derive(Debug)]
     struct ErrorWrite {
         error: ErrorKind,
     }
 
-    impl std::io::Write for ErrorWrite {
-        fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
-            Err(std::io::Error::from(self.error))
+    impl tokio::io::AsyncWrite for ErrorWrite {
+        fn poll_write(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+            _buf: &[u8],
+        ) -> std::task::Poll<Result<usize, std::io::Error>> {
+            std::task::Poll::Ready(Err(std::io::Error::from(self.error)))
         }
 
-        fn flush(&mut self) -> std::io::Result<()> {
+        fn poll_flush(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Result<(), std::io::Error>> {
+            unreachable!()
+        }
+
+        fn poll_shutdown(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Result<(), std::io::Error>> {
             unreachable!()
         }
     }
 
-    #[test]
-    fn test_ok() {
+    #[tokio::test]
+    async fn test_ok() {
+        #[derive(Debug)]
         struct OkWrite {
             written: usize,
         }
 
-        impl std::io::Write for OkWrite {
-            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-                self.written = buf.len();
-                Ok(buf.len())
+        impl tokio::io::AsyncWrite for OkWrite {
+            fn poll_write(
+                self: std::pin::Pin<&mut Self>,
+                _cx: &mut std::task::Context<'_>,
+                buf: &[u8],
+            ) -> std::task::Poll<Result<usize, std::io::Error>> {
+                self.get_mut().written = buf.len();
+                std::task::Poll::Ready(Ok(buf.len()))
             }
 
-            fn flush(&mut self) -> std::io::Result<()> {
+            fn poll_flush(
+                self: std::pin::Pin<&mut Self>,
+                _cx: &mut std::task::Context<'_>,
+            ) -> std::task::Poll<Result<(), std::io::Error>> {
+                unreachable!()
+            }
+
+            fn poll_shutdown(
+                self: std::pin::Pin<&mut Self>,
+                _cx: &mut std::task::Context<'_>,
+            ) -> std::task::Poll<Result<(), std::io::Error>> {
                 unreachable!()
             }
         }
 
-        let mut ok_write = OkWrite { written: 0 };
+        let ok_write = OkWrite { written: 0 };
 
-        let r = sendline(
-            &mut ok_write,
-            std::net::SocketAddr::new(IpAddr::V4([192, 168, 99, 1].into()), 3000),
-            100,
-        );
+        tokio::pin!(ok_write);
+
+        let r = sendline(&mut ok_write, 100).await;
 
         assert_eq!(Ok(ok_write.written), r);
     }
 
-    #[test]
-    fn test_fail_not_connected() {
-        let mut error_not_connected = ErrorWrite {
+    #[tokio::test]
+    async fn test_fail_not_connected() {
+        let error_not_connected = ErrorWrite {
             error: ErrorKind::NotConnected,
         };
 
-        let r = sendline(
-            &mut error_not_connected,
-            std::net::SocketAddr::new(IpAddr::V4([192, 168, 99, 1].into()), 3000),
-            100,
-        );
+        tokio::pin!(error_not_connected);
+
+        let r = sendline(&mut error_not_connected, 100).await;
 
         assert_eq!(Err(()), r);
     }
 
-    #[test]
-    fn test_pass_would_block() {
-        let mut error_would_block = ErrorWrite {
+    #[tokio::test]
+    async fn test_pass_would_block() {
+        let error_would_block = ErrorWrite {
             error: ErrorKind::WouldBlock,
         };
 
-        let r = sendline(
-            &mut error_would_block,
-            std::net::SocketAddr::new(IpAddr::V4([192, 168, 99, 1].into()), 3000),
-            100,
-        );
+        tokio::pin!(error_would_block);
+
+        let r = sendline(&mut error_would_block, 100).await;
 
         assert_eq!(Ok(0), r);
     }
 
-    #[test]
-    fn test_error_connection_reset() {
-        let mut error_connection_reset = ErrorWrite {
+    #[tokio::test]
+    async fn test_error_connection_reset() {
+        let error_connection_reset = ErrorWrite {
             error: ErrorKind::ConnectionReset,
         };
-        let r = sendline(
-            &mut error_connection_reset,
-            std::net::SocketAddr::new(IpAddr::V4([192, 168, 99, 1].into()), 3000),
-            100,
-        );
+
+        tokio::pin!(error_connection_reset);
+
+        let r = sendline(&mut error_connection_reset, 100).await;
 
         assert_eq!(Err(()), r);
     }
