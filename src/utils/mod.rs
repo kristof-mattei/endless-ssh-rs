@@ -1,7 +1,6 @@
 use tokio::task::JoinHandle;
 
 pub mod env;
-pub mod url;
 
 #[allow(dead_code)]
 /// Use this when you have a `JoinHandle<Result<T, E>>`
