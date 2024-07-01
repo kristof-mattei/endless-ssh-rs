@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use time::OffsetDateTime;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -12,34 +14,38 @@ use crate::sender;
 use crate::statistics::Statistics;
 
 pub(crate) async fn process_clients_forever(
-    client_sender: &Sender<Client<TcpStream>>,
+    client_sender: Sender<Client<TcpStream>>,
     mut client_receiver: Receiver<Client<TcpStream>>,
-    semaphore: &Semaphore,
-    cancellation_token: CancellationToken,
-    statistics: &RwLock<Statistics>,
-    config: &Config,
-) -> Result<(), color_eyre::Report> {
+    semaphore: Arc<Semaphore>,
+    token: CancellationToken,
+    statistics: Arc<RwLock<Statistics>>,
+    config: Arc<Config>,
+) {
+    let _guard = token.clone().drop_guard();
+
     event!(Level::INFO, message = "Processing clients");
 
     loop {
         tokio::select! {
             biased;
-            () = cancellation_token.cancelled() => {
+            () = token.cancelled() => {
                 break;
             },
             received_client = client_receiver.recv() => {
                 if let Some(client) = received_client {
-                    if let Some(client) = process_client(client, semaphore, config, statistics).await{
-                        client_sender.send(client).await?;
+                    if let Some(client) = process_client(client, &semaphore, &config, &statistics).await {
+                        if (client_sender.send(client).await).is_err() {
+                            event!(Level::ERROR, "Client sender gone");
+                            break;
+                        }
                     }
                 } else {
-                    return Err(color_eyre::Report::msg("Client receiver queue gone"));
+                    event!(Level::ERROR, "Client receiver gone");
+                    break;
                 }
             },
         };
     }
-
-    Ok(())
 }
 
 async fn process_client<S>(

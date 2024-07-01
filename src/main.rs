@@ -92,51 +92,27 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
     let token = CancellationToken::new();
 
     let mut tasks = tokio::task::JoinSet::new();
-    {
-        let token = token.clone();
-        let config = config.clone();
-        let client_sender = client_sender.clone();
-        let semaphore = semaphore.clone();
-        let statistics = statistics.clone();
 
+    {
         tasks.spawn(listener::listen_forever(
-            client_sender,
-            semaphore,
-            config,
-            token,
-            statistics,
+            client_sender.clone(),
+            semaphore.clone(),
+            config.clone(),
+            token.clone(),
+            statistics.clone(),
         ));
     }
 
     {
-        let token = token.clone();
-        let config = config.clone();
-        let client_sender = client_sender.clone();
-        let semaphore = semaphore.clone();
-        let statistics = statistics.clone();
-
-        tasks.spawn(async move {
-            let _guard = token.clone().drop_guard();
-
-            // listen to new connection channel, convert into client, push to client channel
-            match process_clients_forever(
-                &client_sender,
-                client_receiver,
-                &semaphore,
-                token,
-                &statistics,
-                &config,
-            )
-            .await
-            {
-                Ok(()) => {
-                    // carry on
-                },
-                Err(error) => {
-                    event!(Level::ERROR, ?error);
-                },
-            }
-        });
+        // listen to new connection channel, convert into client, push to client channel
+        tasks.spawn(process_clients_forever(
+            client_sender.clone(),
+            client_receiver,
+            semaphore.clone(),
+            token.clone(),
+            statistics.clone(),
+            config.clone(),
+        ));
     }
 
     {
