@@ -1,11 +1,11 @@
 use std::io::Error;
 use std::mem::{size_of_val, MaybeUninit};
-use std::net::TcpStream;
 use std::os::unix::prelude::AsRawFd;
 use std::ptr::{addr_of, null_mut};
 
 use color_eyre::eyre;
 use libc::{c_int, c_void, setsockopt, sigaction, sigset_t, socklen_t, SOL_SOCKET, SO_RCVBUF};
+use tokio::net::TcpStream;
 use tracing::Level;
 
 use crate::wrap_and_report;
@@ -36,6 +36,7 @@ pub(crate) fn set_receive_buffer_size(
     Ok(())
 }
 
+#[allow(unused)]
 pub(crate) fn set_up_handler(
     signum: c_int,
     handler: extern "C" fn(_: c_int),

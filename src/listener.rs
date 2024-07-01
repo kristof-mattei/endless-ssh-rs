@@ -1,32 +1,64 @@
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, TcpListener};
-use std::os::unix::prelude::AsRawFd;
-use std::ptr::addr_of_mut;
-use std::{
-    io::{Error, ErrorKind},
-    net::TcpStream,
-};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::sync::Arc;
 
-use color_eyre::eyre::{self, eyre, Report, WrapErr};
-use libc::{poll, pollfd, POLLIN};
 use time::OffsetDateTime;
+use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::mpsc::Sender;
+use tokio::sync::{RwLock, Semaphore, TryAcquireError};
+use tokio_util::sync::CancellationToken;
 use tracing::{event, Level};
 
-use crate::{
-    client::Client,
-    client_queue::ClientQueue,
-    config::{BindFamily, Config},
-    statistics::Statistics,
-    wrap_and_report, SIZE_IN_BYTES,
-};
-use crate::{ffi_wrapper::set_receive_buffer_size, timeout::Timeout};
+use crate::client::Client;
+use crate::config::{BindFamily, Config};
+use crate::ffi_wrapper::set_receive_buffer_size;
+use crate::statistics::Statistics;
+use crate::SIZE_IN_BYTES;
 
-pub(crate) struct Listener {
+struct Listener<'c> {
+    config: &'c Config,
     listener: TcpListener,
-    fds: pollfd,
 }
 
-impl Listener {
-    pub(crate) fn start_listening(config: &Config) -> Result<Self, eyre::Report> {
+pub(crate) async fn listen_forever(
+    client_sender: tokio::sync::mpsc::Sender<Client<TcpStream>>,
+    semaphore: Arc<Semaphore>,
+    config: Arc<Config>,
+    token: CancellationToken,
+    statistics: Arc<RwLock<Statistics>>,
+) {
+    let _guard = token.clone().drop_guard();
+
+    // listen forever, accept new clients
+    let listener = match Listener::bind(&config).await {
+        Ok(l) => l,
+        Err(error) => {
+            event!(Level::ERROR, ?error);
+            return;
+        },
+    };
+
+    event!(Level::INFO, message = "Bound and listening!", listener=?listener.listener);
+
+    loop {
+        tokio::select! {
+            biased;
+            () = token.cancelled() => {
+                break;
+            },
+            result = listener.accept(&client_sender, &semaphore, &statistics) => {
+                if let Err(error) = result {
+                    event!(Level::ERROR, ?error);
+
+                    // TODO properly log errors
+                    break;
+                }
+            },
+        };
+    }
+}
+
+impl<'c> Listener<'c> {
+    pub(crate) async fn bind(config: &'c Config) -> Result<Self, color_eyre::Report> {
         let sa = match config.bind_family {
             BindFamily::Ipv4 => {
                 SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, config.port.get()))
@@ -42,131 +74,69 @@ impl Listener {
         // TODO BindFamily::Ipv6 is not respected. Dual stack / IPv6 only are
         // set by /proc/sys/net/ipv6/bindv6only
 
-        let listener = TcpListener::bind(sa).unwrap();
+        let listener = TcpListener::bind(sa).await?;
 
-        listener
-            .set_nonblocking(true)
-            .wrap_err("Failed to set listener to non-blocking")?;
-
-        event!(Level::DEBUG, ?listener, "Bound and listening!");
-
-        let fd = listener.as_raw_fd();
-
-        Ok(Self {
-            listener,
-            fds: pollfd {
-                fd,
-                events: POLLIN,
-                revents: 0,
-            },
-        })
+        Ok(Self { config, listener })
     }
 
-    pub(crate) fn wait_poll(
-        &mut self,
-        can_accept_more_clients: bool,
-        timeout: &Timeout,
-    ) -> Result<bool, eyre::Report> {
-        // Wait for next event
-        event!(
-            Level::DEBUG,
-            ?timeout,
-            "{}",
-            if can_accept_more_clients {
-                "Waiting for data on socket or timeout expiration"
-            } else {
-                "Maximum clients reached, just waiting until timeout expires"
-            },
-        );
-
-        let r = unsafe {
-            poll(
-                addr_of_mut!(self.fds),
-                can_accept_more_clients.into(),
-                timeout.as_c_timeout(),
-            )
-        };
-
-        match r {
-            -1 => {
-                let last_error = Error::last_os_error();
-
-                // poll & ppoll's EINTR cannot be avoided by using SA_RESTART
-                // see https://stackoverflow.com/a/48553220
-                if ErrorKind::Interrupted == last_error.kind() {
-                    event!(Level::DEBUG, "Poll interrupted");
-
-                    Ok(false)
-                } else {
-                    Err(Report::from(last_error).wrap_err(
-                        "Something went wrong during polling / waiting for the next call",
-                    ))
-                }
-            },
-            0 => {
-                // ppoll returning 0 means timeout expiration
-                event!(Level::DEBUG, "Ending poll because of timeout expiraton");
-
-                Ok(false)
-            },
-            1 if self.fds.revents & POLLIN == POLLIN => {
-                event!(Level::DEBUG, "Ending poll because of incoming connection");
-
-                Ok(true)
-            },
-            r => Err(eyre!(
-                "poll() returned {}, which is impossible, as we only wait on 1 file descriptor",
-                r
-            )),
-        }
-    }
-
-    pub(crate) fn accept(
+    pub(crate) async fn accept(
         &self,
-        clients: &mut ClientQueue<TcpStream>,
-        statistics: &mut Statistics,
-        config: &mut Config,
+        client_sender: &Sender<Client<TcpStream>>,
+        semaphore: &Semaphore,
+        statistics: &RwLock<Statistics>,
     ) -> Result<(), color_eyre::Report> {
-        let accept = self.listener.accept();
+        let accept = self.listener.accept().await;
 
-        statistics.connects += 1;
+        {
+            let mut guard = statistics.write().await;
+            guard.connects += 1;
+        }
 
         match accept {
             Ok((socket, addr)) => {
-                if let Err(error) = socket.set_nonblocking(true) {
-                    event!(
-                        Level::WARN,
-                        ?error,
-                        "Failed to set incoming connect to non-blocking mode, discarding",
-                    );
-
-                    // can't do anything anymore
-                    // continue;
-                }
                 // Set the smallest possible recieve buffer. This reduces local
                 // resource usage and slows down the remote end.
-                else if let Err(error) = set_receive_buffer_size(&socket, SIZE_IN_BYTES) {
+                if let Err(error) = set_receive_buffer_size(&socket, SIZE_IN_BYTES) {
                     event!(
                         Level::ERROR,
                         ?error,
                         "Failed to set the tcp stream's receive buffer",
                     );
-
-                    // can't do anything anymore
-                    // continue;
                 } else {
-                    let client =
-                        Client::new(socket, addr, OffsetDateTime::now_utc() + config.delay);
+                    // we do try_acquire because either we can add the client or we cannot
+                    // no in-between, no sense in waiting
+                    match semaphore.try_acquire() {
+                        Ok(permit) => {
+                            let client = Client::new(
+                                socket,
+                                addr,
+                                OffsetDateTime::now_utc() + self.config.delay,
+                            );
 
-                    clients.push(client);
+                            // we have a permit, we can send it on the queue
+                            client_sender.send(client).await?;
 
-                    event!(
-                        Level::INFO,
-                        addr = ?addr,
-                        current_clients = clients.len(),
-                        max_clients = config.max_clients,
-                        "Accepted new client",
-                    );
+                            permit.forget();
+
+                            let current_clients =
+                                self.config.max_clients.get() - semaphore.available_permits();
+
+                            event!(
+                                Level::INFO,
+                                addr = ?addr,
+                                current_clients,
+                                max_clients = self.config.max_clients,
+                                "Accepted new client",
+                            );
+                        },
+                        Err(TryAcquireError::NoPermits) => {
+                            event!(Level::WARN, ?addr, "Queue full, not accepting new client");
+                        },
+                        Err(error @ TryAcquireError::Closed) => {
+                            return Err(color_eyre::Report::new(error)
+                                .wrap_err("Queue gone, not accepting new client"));
+                        },
+                    }
                 }
             },
             Err(error) => match error.raw_os_error() {
@@ -194,12 +164,9 @@ impl Listener {
                     event!(Level::INFO, ?error, "Unable to accept new connection");
                 },
                 _ => {
-                    // FATAL
-                    return Err(wrap_and_report!(
-                        Level::ERROR,
-                        error,
-                        "Unable to accept new connection"
-                    ));
+                    return Err(
+                        color_eyre::Report::new(error).wrap_err("Unable to accept new connection")
+                    );
                 },
             },
         }
