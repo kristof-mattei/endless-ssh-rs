@@ -2,6 +2,7 @@ mod cli;
 mod client;
 mod client_queue;
 mod config;
+mod events;
 mod ffi_wrapper;
 mod helpers;
 mod line;
@@ -20,7 +21,10 @@ use std::time::Duration;
 use client::Client;
 use client_queue::process_clients_forever;
 use dotenvy::dotenv;
+use events::{database_listen_forever, ClientEvent};
+use once_cell::sync::Lazy;
 use tokio::net::TcpStream;
+use tokio::sync;
 use tokio::sync::{RwLock, Semaphore};
 use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
@@ -33,6 +37,9 @@ use crate::cli::parse_cli;
 use crate::statistics::Statistics;
 
 const SIZE_IN_BYTES: usize = 1;
+
+static BROADCAST_CHANNEL: Lazy<sync::broadcast::Sender<ClientEvent>> =
+    Lazy::new(|| sync::broadcast::channel(100).0);
 
 fn main() -> Result<(), color_eyre::Report> {
     // set up .env, if it fails, user didn't provide any
@@ -125,6 +132,16 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
             while let Some(()) = signal_handlers::wait_for_sigusr1().await {
                 statistics.read().await.log_totals::<()>(&[]);
             }
+        });
+    }
+
+    {
+        let token = token.clone();
+
+        tasks.spawn(async move {
+            let _guard = token.clone().drop_guard();
+
+            database_listen_forever().await;
         });
     }
 
