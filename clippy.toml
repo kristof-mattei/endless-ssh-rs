@@ -1,6 +1,8 @@
 allowed-duplicate-crates = [
+    "matchit",
     "regex-automata",
     "regex-syntax",
+    "sync_wrapper",
     "windows-sys",
     "windows-targets",
     "windows_aarch64_gnullvm",

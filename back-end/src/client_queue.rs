@@ -18,11 +18,9 @@ pub(crate) async fn process_clients_forever(
     mut client_receiver: Receiver<Client<TcpStream>>,
     semaphore: Arc<Semaphore>,
     token: CancellationToken,
-    statistics: Arc<RwLock<Statistics>>,
     config: Arc<Config>,
+    statistics: Arc<RwLock<Statistics>>,
 ) {
-    let _guard = token.clone().drop_guard();
-
     event!(Level::INFO, message = "Processing clients");
 
     loop {

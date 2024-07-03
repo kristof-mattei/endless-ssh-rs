@@ -22,13 +22,10 @@ struct Listener<'c> {
 pub(crate) async fn listen_forever(
     client_sender: tokio::sync::mpsc::Sender<Client<TcpStream>>,
     semaphore: Arc<Semaphore>,
-    config: Arc<Config>,
     token: CancellationToken,
+    config: Arc<Config>,
     statistics: Arc<RwLock<Statistics>>,
 ) {
-    let _guard = token.clone().drop_guard();
-
-    // listen forever, accept new clients
     let listener = match Listener::bind(&config).await {
         Ok(l) => l,
         Err(error) => {
@@ -37,8 +34,9 @@ pub(crate) async fn listen_forever(
         },
     };
 
-    event!(Level::INFO, message = "Bound and listening!", listener=?listener.listener);
+    event!(Level::INFO,message="Bound and listening!",listener=?listener.listener.local_addr());
 
+    // listen forever, accept new clients
     loop {
         tokio::select! {
             biased;
@@ -47,9 +45,9 @@ pub(crate) async fn listen_forever(
             },
             result = listener.accept(&client_sender, &semaphore, &statistics) => {
                 if let Err(error) = result {
+                    // TODO properly log errors
                     event!(Level::ERROR, ?error);
 
-                    // TODO properly log errors
                     break;
                 }
             },

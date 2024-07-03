@@ -1,9 +1,12 @@
-/target
-
 .cr-release-packages
 .cr-index
 
-node_modules/
-reports/
-profiling/
-NEXTVERSION
+/node_modules/
+/coverage/
+/reports/
+/profiling/
+/target/
+/dist/
+NEXT_VERSION
+
+.env

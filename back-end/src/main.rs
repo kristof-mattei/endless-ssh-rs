@@ -8,6 +8,7 @@ mod helpers;
 mod line;
 mod listener;
 mod sender;
+mod server;
 mod signal_handlers;
 mod statistics;
 mod timeout;
@@ -22,7 +23,9 @@ use client::Client;
 use client_queue::process_clients_forever;
 use dotenvy::dotenv;
 use events::{database_listen_forever, ClientEvent};
+use listener::listen_forever;
 use once_cell::sync::Lazy;
+use server::setup_server;
 use tokio::net::TcpStream;
 use tokio::sync;
 use tokio::sync::{RwLock, Semaphore};
@@ -86,6 +89,11 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
 
     config.log();
 
+    let bind_to = ([0, 0, 0, 0], 3000).into();
+
+    // TODO
+    let router = axum::Router::new();
+
     // clients channel
     let (client_sender, client_receiver) =
         tokio::sync::mpsc::channel::<Client<TcpStream>>(config.max_clients.into());
@@ -101,11 +109,26 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
     let mut tasks = tokio::task::JoinSet::new();
 
     {
-        tasks.spawn(listener::listen_forever(
+        let token = token.clone();
+
+        tasks.spawn(async move {
+            match setup_server(bind_to, router, token.clone()).await {
+                Err(err) => {
+                    event!(Level::ERROR, ?err, "Server died");
+                },
+                Ok(()) => {
+                    event!(Level::INFO, "Server shut down");
+                },
+            }
+        });
+    }
+
+    {
+        tasks.spawn(listen_forever(
             client_sender.clone(),
             semaphore.clone(),
-            config.clone(),
             token.clone(),
+            config.clone(),
             statistics.clone(),
         ));
     }
@@ -117,18 +140,15 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
             client_receiver,
             semaphore.clone(),
             token.clone(),
-            statistics.clone(),
             config.clone(),
+            statistics.clone(),
         ));
     }
 
     {
-        let token = token.clone();
         let statistics = statistics.clone();
 
         tasks.spawn(async move {
-            let _guard = token.clone().drop_guard();
-
             while let Some(()) = signal_handlers::wait_for_sigusr1().await {
                 statistics.read().await.log_totals::<()>(&[]);
             }
@@ -136,11 +156,7 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
     }
 
     {
-        let token = token.clone();
-
         tasks.spawn(async move {
-            let _guard = token.clone().drop_guard();
-
             database_listen_forever().await;
         });
     }
@@ -155,6 +171,7 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
             // we completed because ...
             event!(Level::WARN, message = "CTRL+C detected, stopping all tasks");
         },
+        _ = tasks.join_next() => {},
         _ = signal_handlers::wait_for_sigterm() => {
             // we completed because ...
             event!(Level::WARN, message = "Sigterm detected, stopping all tasks");
