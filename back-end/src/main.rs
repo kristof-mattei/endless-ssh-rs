@@ -25,7 +25,7 @@ use dotenvy::dotenv;
 use events::{database_listen_forever, ClientEvent};
 use listener::listen_forever;
 use once_cell::sync::Lazy;
-use server::setup_server;
+use server::server_forever;
 use tokio::net::TcpStream;
 use tokio::sync;
 use tokio::sync::{RwLock, Semaphore};
@@ -111,23 +111,13 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
     {
         let token = token.clone();
 
-        tasks.spawn(async move {
-            match setup_server(bind_to, router, token.clone()).await {
-                Err(err) => {
-                    event!(Level::ERROR, ?err, "Server died");
-                },
-                Ok(()) => {
-                    event!(Level::INFO, "Server shut down");
-                },
-            }
-        });
+        tasks.spawn(server_forever(bind_to, router, token.clone()));
     }
 
     {
         tasks.spawn(listen_forever(
             client_sender.clone(),
             semaphore.clone(),
-            token.clone(),
             config.clone(),
             statistics.clone(),
         ));
@@ -139,7 +129,6 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
             client_sender.clone(),
             client_receiver,
             semaphore.clone(),
-            token.clone(),
             config.clone(),
             statistics.clone(),
         ));
