@@ -32,7 +32,7 @@ opt-level = 3
 coverage = []
 
 [dependencies]
-clap = { version = "4.5.12", features = ["cargo"] }
+clap = { version = "4.5.13", features = ["cargo"] }
 color-eyre = { git = "https://github.com/eyre-rs/eyre", rev = "2dc0688d33a487009e8bc3222cbab135261383b0", features = [
     "track-caller",
 ] }
