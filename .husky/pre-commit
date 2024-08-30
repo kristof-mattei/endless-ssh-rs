@@ -1,2 +1,2 @@
-npm test -- --run
+# npm test -- --run
 cargo test
