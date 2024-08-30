@@ -1,13 +1,20 @@
-code:
+shared: &shared
   - ".nvmrc"
-  - "src/**"
-  - "TAG"
+  - ".ci"
+  - ".github/**"
+docker:
+  - *shared
+  - Dockerfile
+rust:
+  - *shared
+  - ".cargo/**"
+  - "backend-end/**"
   - Cargo.lock
   - "*.toml"
-  - Dockerfile
-  - "tests/**"
-  - ".github/**"
-  - ".cargo/**"
+typescript:
+  - *shared
+  - "front-end/**"
+  - "**/*.ts"
+  - "**/*.cjs"
   - "package.json"
   - "package-lock.json"
-  - ".ci"

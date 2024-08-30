@@ -1,0 +1,241 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Build TypeScript
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+on:
+  workflow_call:
+
+jobs:
+  warm-up-cache:
+    name: Warm up the cache
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          submodules: true
+
+      - name: Set up node
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Ensure latest version of npm, older versions v8 have broken caching
+        shell: bash
+        run: |
+          npm install --location=global npm@latest
+
+      - name: Download dependencies
+        shell: bash
+        run: |
+          npm ci
+
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      typescript: ${{ steps.filter.outputs.typescript }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          show-progress: false
+          submodules: true
+
+      - name: Check if we actually made changes
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          filters: .github/file-filters.yml
+
+  npm-build:
+    name: Build the code
+    runs-on: ubuntu-latest
+    needs:
+      - changes
+      - warm-up-cache
+    if: |
+      github.event_name == 'pull_request' &&
+      fromJSON(needs.changes.outputs.typescript) == true
+    steps:
+      - name: Check out code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          show-progress: false
+          submodules: true
+
+      - name: Set up node
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Download dependencies from cache
+        shell: bash
+        run: |
+          npm ci --offline
+
+      - name: Run build
+        shell: bash
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        run: |
+          npm run build
+
+  npm-lint:
+    name: Lint the code
+    runs-on: ubuntu-latest
+    needs:
+      - changes
+      - warm-up-cache
+    if: |
+      github.event_name == 'pull_request' &&
+      fromJSON(needs.changes.outputs.typescript) == true
+    steps:
+      - name: Check out code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          show-progress: false
+          submodules: true
+
+      - name: Set up node
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Download dependencies from cache
+        shell: bash
+        run: |
+          npm ci --offline
+
+      - name: Run lint
+        shell: bash
+        run: |
+          npm run lint -- --format=json --output-file reports/lint-report.json
+        continue-on-error: true
+
+      - name: Annotate Code Linting Results
+        uses: ataylorme/eslint-annotate-action@a1bf7cb320a18aa53cb848a267ce9b7417221526 # 1.2.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          report-json: reports/lint-report.json
+
+  npm-test:
+    name: Test the code
+    runs-on: ubuntu-latest
+    needs:
+      - warm-up-cache
+    steps:
+      - name: Check out code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          show-progress: false
+          submodules: true
+          fetch-depth: 0
+
+      - name: Set up node
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Download dependencies from cache
+        shell: bash
+        run: |
+          npm ci --offline
+
+      - name: Run Vitest
+        id: tests
+        continue-on-error: true
+        run: npm run test --reporter=basic --coverage.reporter=text --coverage.reporter=lcov
+
+      - name: Upload coverage results (to Codecov.io)
+        uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673 # v4.5.0
+        with:
+          disable_search: true
+          fail_ci_if_error: true
+          files: coverage/vitest/coverage-final.json
+          flags: front-end
+          plugins: ""
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Fail if tests failed
+        shell: bash
+        if: |
+          steps.tests.outcome != 'success'
+        run: |
+          echo "Tests failed"
+          exit 1
+
+  npm-dependencies:
+    name: Validate dependencies
+    runs-on: ubuntu-latest
+    needs:
+      - changes
+      - warm-up-cache
+    if: |
+      github.event_name == 'pull_request' &&
+      fromJSON(needs.changes.outputs.typescript) == true
+    steps:
+      - name: Check out code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          show-progress: false
+
+      - name: Set up node
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Download dependencies from cache
+        shell: bash
+        run: |
+          npm ci --offline
+
+      - name: Check dependencies
+        shell: bash
+        run: |
+          npm run deps:ci
+
+  all-done:
+    name: TypeScript All done
+    # this is the job that should be marked as required on GitHub. It's the only one that'll reliably trigger
+    # when any upstream fails: success
+    # when all upstream skips: pass
+    # when all upstream success: success
+    # combination of upstream skip and success: success
+    runs-on: ubuntu-latest
+    needs:
+      - npm-build
+      - npm-dependencies
+      - npm-lint
+      - npm-test
+    if: |
+      always()
+    steps:
+      - name: Fail!
+        shell: bash
+        if: |
+          contains(needs.*.result, 'failure') ||
+          contains(needs.*.result, 'cancelled')
+        run: |
+          echo "One / more upstream failed or was cancelled. Failing job..."
+          exit 1
+
+      - name: Success!
+        shell: bash
+        run: |
+          echo "Great success!"

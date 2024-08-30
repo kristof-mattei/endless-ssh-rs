@@ -5,7 +5,8 @@ ARG APPLICATION_NAME
 
 RUN rustup target add ${TARGET}
 
-RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+RUN rm -f /etc/apt/apt.conf.d/docker-clean \
+    && echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' >/etc/apt/apt.conf.d/keep-cache
 
 # borrowed (Ba Dum Tss!) from
 # https://github.com/pablodeymo/rust-musl-builder/blob/7a7ea3e909b1ef00c177d9eeac32d8c9d7d6a08c/Dockerfile#L48-L49
@@ -28,14 +29,20 @@ RUN cargo new ${APPLICATION_NAME}
 WORKDIR /build/${APPLICATION_NAME}
 COPY .cargo ./.cargo
 COPY Cargo.toml Cargo.lock ./
+
+# because have our source in a subfolder, we need to ensure that the path in the [[bin]] section exists
+RUN mkdir -p back-end/src && mv src/main.rs back-end/src/main.rs
+
 RUN --mount=type=cache,id=cargo-dependencies,target=/build/${APPLICATION_NAME}/target \
     cargo build --release --target ${TARGET}
 
+# TODO build JS
+
 # now we copy in the source which is more prone to changes and build it
-COPY src ./src
+COPY . .
 
 # --release not needed, it is implied with install
-RUN --mount=type=cache,id=full-build,target=/build/${APPLICATION_NAME}/target \
+RUN --mount=type=cache,id=rust-full-build,target=/build/${APPLICATION_NAME}/target \
     cargo install --path . --target ${TARGET} --root /output
 
 FROM alpine:3.20.2@sha256:0a4eaa0eecf5f8c050e5bba433f58c052be7587ee8af3e8b3910ef9ab5fbe9f5
@@ -46,7 +53,9 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
 
 WORKDIR /app
-COPY --from=builder /output/bin/${APPLICATION_NAME} /app/entrypoint
+
+COPY --from=rust_builder /output/bin/* /app/entrypoint
+COPY --from=typescript_builder /build/dist /app/dist
 
 ENV RUST_BACKTRACE=full
 ENTRYPOINT ["/app/entrypoint"]

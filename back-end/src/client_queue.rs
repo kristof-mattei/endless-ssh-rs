@@ -5,7 +5,6 @@ use tokio::net::TcpStream;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{RwLock, Semaphore};
 use tokio::time::sleep;
-use tokio_util::sync::CancellationToken;
 use tracing::{event, Level};
 
 use crate::client::Client;
@@ -17,35 +16,24 @@ pub(crate) async fn process_clients_forever(
     client_sender: Sender<Client<TcpStream>>,
     mut client_receiver: Receiver<Client<TcpStream>>,
     semaphore: Arc<Semaphore>,
-    token: CancellationToken,
-    statistics: Arc<RwLock<Statistics>>,
     config: Arc<Config>,
+    statistics: Arc<RwLock<Statistics>>,
 ) {
-    let _guard = token.clone().drop_guard();
-
     event!(Level::INFO, message = "Processing clients");
 
-    loop {
-        tokio::select! {
-            biased;
-            () = token.cancelled() => {
+    while let Some(client) = client_receiver.recv().await {
+        if let Some(client) = process_client(client, &semaphore, &config, &statistics).await {
+            if (client_sender.send(client).await).is_err() {
+                event!(Level::ERROR, "Client sender gone");
                 break;
-            },
-            received_client = client_receiver.recv() => {
-                if let Some(client) = received_client {
-                    if let Some(client) = process_client(client, &semaphore, &config, &statistics).await {
-                        if (client_sender.send(client).await).is_err() {
-                            event!(Level::ERROR, "Client sender gone");
-                            break;
-                        }
-                    }
-                } else {
-                    event!(Level::ERROR, "Client receiver gone");
-                    break;
-                }
-            },
-        };
+            }
+        }
     }
+
+    event!(
+        Level::INFO,
+        "Client receiver gone, cannot process clients anymore"
+    );
 }
 
 async fn process_client<S>(

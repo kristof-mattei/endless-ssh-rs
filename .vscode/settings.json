@@ -1,4 +1,6 @@
 {
+    "biome.enabled": false,
+    "jest.enable": false,
     "debug.internalConsoleOptions": "openOnSessionStart",
     "prettier.configPath": "./.prettierrc.cjs",
     "rust-analyzer.debug.engineSettings": {
@@ -9,6 +11,6 @@
     },
     "rust-analyzer.debug.openDebugPane": true,
     "rust-analyzer.runnables.extraEnv": {
-        "RUST_LOG": "DEBUG,endless_ssh_rs=TRACE"
+        "RUST_LOG": "DEBUG,socketioxide=INFO,engineioxide=INFO,endless_ssh_rs=TRACE"
     }
 }

@@ -1,7 +1,7 @@
 /**
- * @type {import('semantic-release').GlobalConfig}
+ * @type { import("semantic-release").Options }
  */
-module.exports = {
+const config = {
     plugins: [
         [
             "@semantic-release/commit-analyzer",
@@ -30,3 +30,5 @@ module.exports = {
         },
     ],
 };
+
+module.exports = config;
