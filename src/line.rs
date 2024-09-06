@@ -54,7 +54,7 @@ fn randline_from(mut rng: impl GetRandom, maxlen: usize) -> Vec<u8> {
         .copy_from_slice(&[13u8, 10]);
 
     // ensure start doesn't begin with "SSH-"
-    if buffer.starts_with(&[b'S', b'S', b'H', b'-']) {
+    if buffer.starts_with(b"SSH-") {
         buffer[0] = b'X';
     }
 
