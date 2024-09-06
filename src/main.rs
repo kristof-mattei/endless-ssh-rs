@@ -65,7 +65,7 @@ fn main() -> Result<(), color_eyre::Report> {
 async fn start_tasks() -> Result<(), color_eyre::Report> {
     let statistics = Arc::new(RwLock::new(Statistics::new()));
 
-    let config = Arc::new(parse_cli().map_err(|error| {
+    let config = Arc::new(parse_cli().inspect_err(|error| {
         // this prints the error in color and exits
         // can't do anything else until
         // https://github.com/clap-rs/clap/issues/2914
@@ -73,8 +73,6 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
         if let Some(clap_error) = error.downcast_ref::<clap::error::Error>() {
             clap_error.exit();
         }
-
-        error
     })?);
 
     config.log();
