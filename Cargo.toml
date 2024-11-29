@@ -53,12 +53,12 @@ tokio = { version = "1.41.1", features = [
     "io-util",
 ] }
 tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.18", features = [
+tracing-subscriber = { version = "0.3.19", features = [
     "env-filter",
     "time",
     "tracing-log",
 ] }
-tracing-error = "0.2.0"
+tracing-error = "0.2.1"
 tokio-util = "0.7.12"
 
 # We compile the Docker container with musl to get a static library. Smaller, faster.
