@@ -27,7 +27,7 @@ where
     inner: &'t T,
 }
 
-impl<'t, T> std::fmt::Debug for DisplayAsDebugWrapper<'t, T>
+impl<T> std::fmt::Debug for DisplayAsDebugWrapper<'_, T>
 where
     T: std::fmt::Display,
 {
