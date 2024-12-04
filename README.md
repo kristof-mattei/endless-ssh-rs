@@ -6,9 +6,9 @@ A Rust rewrite of the all-popular [Endless SSH tarpit](https://github.com/skeeto
 
 Technologies used:
 
--   Rust
--   Tokio
--   Clap (CLI)
--   mockall & mockall_double (testing)
+- Rust
+- Tokio
+- Clap (CLI)
+- mockall & mockall_double (testing)
 
 Releases can be found [here](https://github.com/kristof-mattei/endless-ssh-rs/releases).
