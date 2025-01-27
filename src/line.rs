@@ -1,4 +1,4 @@
-use ::rand::distributions::uniform::{SampleRange, SampleUniform};
+use ::rand::distr::uniform::{SampleRange, SampleUniform};
 use mockall::automock;
 use rand::rngs::ThreadRng;
 use rand::Rng;
@@ -21,17 +21,12 @@ impl GetRandom for GenRange<ThreadRng> {
         T: SampleUniform + 'static,
         R: SampleRange<T> + 'static,
     {
-        self.rng.gen_range(range)
+        self.rng.random_range(range)
     }
 }
 
 pub fn randline(maxlen: usize) -> Vec<u8> {
-    randline_from(
-        GenRange {
-            rng: ::rand::thread_rng(),
-        },
-        maxlen,
-    )
+    randline_from(GenRange { rng: ::rand::rng() }, maxlen)
 }
 
 fn randline_from(mut rng: impl GetRandom, maxlen: usize) -> Vec<u8> {
