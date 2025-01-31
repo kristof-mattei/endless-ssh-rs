@@ -77,6 +77,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "autocfg"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
+
+[[package]]
 name = "backtrace"
 version = "0.3.74"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -144,8 +150,8 @@ checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
 name = "color-eyre"
-version = "0.6.2"
-source = "git+https://github.com/eyre-rs/eyre?rev=2dc0688d33a487009e8bc3222cbab135261383b0#2dc0688d33a487009e8bc3222cbab135261383b0"
+version = "0.6.3"
+source = "git+https://github.com/eyre-rs/eyre?rev=c4ee249f7c51dc6452e8704ae8d117d90d6eeebc#c4ee249f7c51dc6452e8704ae8d117d90d6eeebc"
 dependencies = [
  "backtrace",
  "color-spantrace",
@@ -158,8 +164,8 @@ dependencies = [
 
 [[package]]
 name = "color-spantrace"
-version = "0.2.1"
-source = "git+https://github.com/eyre-rs/eyre?rev=2dc0688d33a487009e8bc3222cbab135261383b0#2dc0688d33a487009e8bc3222cbab135261383b0"
+version = "0.2.2"
+source = "git+https://github.com/eyre-rs/eyre?rev=c4ee249f7c51dc6452e8704ae8d117d90d6eeebc#c4ee249f7c51dc6452e8704ae8d117d90d6eeebc"
 dependencies = [
  "once_cell",
  "owo-colors",
@@ -216,10 +222,10 @@ dependencies = [
 
 [[package]]
 name = "eyre"
-version = "0.6.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cd915d99f24784cdc19fd37ef22b97e3ff0ae756c7e492e9fbfe897d61e2aec"
+version = "1.0.0"
+source = "git+https://github.com/eyre-rs/eyre?rev=c4ee249f7c51dc6452e8704ae8d117d90d6eeebc#c4ee249f7c51dc6452e8704ae8d117d90d6eeebc"
 dependencies = [
+ "autocfg",
  "indenter",
  "once_cell",
 ]
@@ -244,9 +250,9 @@ checksum = "e575fab7d1e0dcb8d0c7bcf9a63ee213816ab51902e6d244a95819acacf1d4f7"
 
 [[package]]
 name = "getrandom"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71393ecc86efbf00e4ca13953979ba8b94cfe549a4b74cc26d8b62f4d8feac2b"
+checksum = "43a49c392881ce6d5c3b8cb70f98717b7c07aabbdff06687b9030dbfbe2725f8"
 dependencies = [
  "cfg-if",
  "libc",
@@ -791,9 +797,9 @@ dependencies = [
 
 [[package]]
 name = "unicode-ident"
-version = "1.0.14"
+version = "1.0.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adb9e6ca4f869e1180728b7950e35922a7fc6397f7b641499e8f3ef06e50dc83"
+checksum = "a210d160f08b701c8721ba1c726c11662f877ea6b7094007e1ca9a1041945034"
 
 [[package]]
 name = "utf8parse"
