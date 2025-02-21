@@ -1,7 +1,7 @@
 use ::rand::distr::uniform::{SampleRange, SampleUniform};
 use mockall::automock;
-use rand::rngs::ThreadRng;
 use rand::Rng;
+use rand::rngs::ThreadRng;
 
 #[automock]
 trait GetRandom {
@@ -62,9 +62,9 @@ mod tests {
 
     use mockall_double::double;
 
-    use crate::line::randline_from;
     #[double]
     use crate::line::GetRandom;
+    use crate::line::randline_from;
 
     #[test]
     fn test_randline() {

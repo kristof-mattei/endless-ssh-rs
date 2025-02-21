@@ -1,6 +1,6 @@
 use std::io::ErrorKind;
 
-use tracing::{event, Level};
+use tracing::{Level, event};
 
 use crate::line::randline;
 

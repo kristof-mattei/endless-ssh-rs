@@ -1,22 +1,23 @@
 use std::env;
 use std::ffi::OsString;
 use std::num::{NonZeroU16, NonZeroU32, NonZeroUsize};
+use std::sync::LazyLock;
 
 use clap::parser::ValueSource;
-use clap::{command, value_parser, Arg, ArgAction, Command};
+use clap::{Arg, ArgAction, Command, command, value_parser};
 use color_eyre::eyre::{self, WrapErr};
-use once_cell::sync::Lazy;
-use tracing::{event, Level};
+use tracing::{Level, event};
 
 use crate::config::{
     Config, DEFAULT_DELAY_MS, DEFAULT_MAX_CLIENTS, DEFAULT_MAX_LINE_LENGTH, DEFAULT_PORT,
 };
 
-static DEFAULT_PORT_VALUE: Lazy<String> = Lazy::new(|| DEFAULT_PORT.to_string());
-static DEFAULT_MAX_CLIENTS_VALUE: Lazy<String> = Lazy::new(|| DEFAULT_MAX_CLIENTS.to_string());
-static DEFAULT_DELAY_MS_VALUE: Lazy<String> = Lazy::new(|| DEFAULT_DELAY_MS.to_string());
-static DEFAULT_MAX_LINE_LENGTH_VALUE: Lazy<String> =
-    Lazy::new(|| DEFAULT_MAX_LINE_LENGTH.to_string());
+static DEFAULT_PORT_VALUE: LazyLock<String> = LazyLock::new(|| DEFAULT_PORT.to_string());
+static DEFAULT_MAX_CLIENTS_VALUE: LazyLock<String> =
+    LazyLock::new(|| DEFAULT_MAX_CLIENTS.to_string());
+static DEFAULT_DELAY_MS_VALUE: LazyLock<String> = LazyLock::new(|| DEFAULT_DELAY_MS.to_string());
+static DEFAULT_MAX_LINE_LENGTH_VALUE: LazyLock<String> =
+    LazyLock::new(|| DEFAULT_MAX_LINE_LENGTH.to_string());
 
 fn build_clap_matcher() -> Command {
     command!()

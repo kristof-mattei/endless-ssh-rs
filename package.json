@@ -4,8 +4,7 @@
   "description": "It's written in Rust!",
   "main": "src/main.rs",
   "scripts": {
-    "format": "prettier --write .",
-    "release": "semantic-release"
+    "format": "prettier --write ."
   },
   "engines": {
     "node": ">=22.14.0",
@@ -23,7 +22,8 @@
   "homepage": "https://github.com/kristof-mattei/endless-ssh-rs#readme",
   "devDependencies": {
     "@actions/tool-cache": "2.0.2",
-    "prettier": "3.5.1"
+    "prettier": "3.5.1",
+    "prettier-plugin-sh": "0.15.0"
   },
   "publishConfig": {
     "access": "restricted"
