@@ -1,10 +1,10 @@
 use std::io::Error;
-use std::mem::{size_of_val, MaybeUninit};
+use std::mem::{MaybeUninit, size_of_val};
 use std::os::unix::prelude::AsRawFd;
 use std::ptr::{addr_of, null_mut};
 
 use color_eyre::eyre;
-use libc::{c_int, c_void, setsockopt, sigaction, sigset_t, socklen_t, SOL_SOCKET, SO_RCVBUF};
+use libc::{SO_RCVBUF, SOL_SOCKET, c_int, c_void, setsockopt, sigaction, sigset_t, socklen_t};
 use tokio::net::TcpStream;
 use tracing::Level;
 

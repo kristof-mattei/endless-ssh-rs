@@ -1,5 +1,5 @@
 use time::Duration;
-use tracing::{event, Level};
+use tracing::{Level, event};
 
 use crate::client::Client;
 

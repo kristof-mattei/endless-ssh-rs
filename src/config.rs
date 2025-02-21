@@ -1,12 +1,12 @@
 use std::num::{NonZeroU16, NonZeroU32, NonZeroUsize};
 use std::time::Duration;
 
-use tracing::{event, Level};
+use tracing::{Level, event};
 
-pub(crate) const DEFAULT_PORT: NonZeroU16 = unsafe { NonZeroU16::new_unchecked(2223) };
-pub(crate) const DEFAULT_DELAY_MS: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(10000) };
-pub(crate) const DEFAULT_MAX_LINE_LENGTH: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(32) };
-pub(crate) const DEFAULT_MAX_CLIENTS: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(64) };
+pub(crate) const DEFAULT_PORT: NonZeroU16 = NonZeroU16::new(2223).unwrap();
+pub(crate) const DEFAULT_DELAY_MS: NonZeroU32 = NonZeroU32::new(10000).unwrap();
+pub(crate) const DEFAULT_MAX_LINE_LENGTH: NonZeroUsize = NonZeroUsize::new(32).unwrap();
+pub(crate) const DEFAULT_MAX_CLIENTS: NonZeroUsize = NonZeroUsize::new(64).unwrap();
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Config {

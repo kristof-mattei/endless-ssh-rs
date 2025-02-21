@@ -2,8 +2,8 @@
 name = "endless-ssh-rs"
 # don't change this, it's updated before an actual build by update-version.sh
 version = "0.0.0-development"
-edition = "2021"
-rust-version = "1.84.1"
+edition = "2024"
+rust-version = "1.85.0"
 authors = ["Kristof Mattei"]
 description = "endless-ssh-rs"
 license-file = "LICENSE"
@@ -32,22 +32,16 @@ uninlined-format-args = { level = "allow", priority = 127 }
 let_underscore_drop = { level = "deny", priority = 127 }
 non_ascii_idents = { level = "deny", priority = 127 }
 
-[profile.dev.package.backtrace]
-opt-level = 3
-
 [features]
 coverage = []
 
 [dependencies]
 clap = { version = "4.5.30", features = ["cargo"] }
-color-eyre = { git = "https://github.com/eyre-rs/eyre", rev = "c4ee249f7c51dc6452e8704ae8d117d90d6eeebc", features = [
-    "track-caller",
-] }
+color-eyre = { git = "https://github.com/eyre-rs/eyre", rev = "c4ee249f7c51dc6452e8704ae8d117d90d6eeebc" }
 dotenvy = "0.15.7"
 libc = "0.2.169"
 mockall = "0.13.1"
 mockall_double = "0.3.1"
-once_cell = "1.20.3"
 rand = "0.9.0"
 time = { version = "0.3.37", features = ["formatting"] }
 tokio = { version = "1.43.0", features = [
@@ -68,9 +62,6 @@ tracing-subscriber = { version = "0.3.19", features = [
 tracing-error = "0.2.1"
 tokio-util = "0.7.13"
 
-# We compile the Docker container with musl to get a static library. Smaller, faster.
-# BUT that means that we need to include openssl
-# Documentation on the syntax:
-# https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#platform-specific-dependencies
-[target.'cfg(all(any(target_arch="x86_64", target_arch="aarch64"), target_os="linux", target_env="musl"))'.dependencies]
+# OpenSSL for musl
+# [target.'cfg(all(any(target_arch="x86_64", target_arch="aarch64"), target_os="linux", target_env="musl"))'.dependencies]
 # openssl = { version = "0.10.36", features = ["vendored"] }

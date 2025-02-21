@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use time::{Duration, OffsetDateTime};
-use tracing::{event, Level};
+use tracing::{Level, event};
 
 pub(crate) struct Client<S> {
     pub(crate) time_spent: Duration,
