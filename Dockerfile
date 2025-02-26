@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} rust:1.85.0@sha256:8e5fb4afd20ad09c60b4b2466aa243a9f991d1dc2482621a8f101c9656c646ae AS rust-base
+FROM --platform=${BUILDPLATFORM} rust:1.85.0@sha256:f495f3224e089bf362375ff8890bb88c4b8e7cec8ae00ca9ebe563f3ae0c0bf7 AS rust-base
 
 ARG APPLICATION_NAME
 
