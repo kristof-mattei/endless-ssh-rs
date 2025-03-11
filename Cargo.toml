@@ -39,7 +39,7 @@ coverage = []
 clap = { version = "4.5.32", features = ["cargo"] }
 color-eyre = { git = "https://github.com/eyre-rs/eyre", rev = "c4ee249f7c51dc6452e8704ae8d117d90d6eeebc" }
 dotenvy = "0.15.7"
-libc = "0.2.170"
+libc = "0.2.171"
 mockall = "0.13.1"
 mockall_double = "0.3.1"
 rand = "0.9.0"
