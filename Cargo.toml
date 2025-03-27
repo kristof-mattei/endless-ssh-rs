@@ -36,7 +36,7 @@ non_ascii_idents = { level = "deny", priority = 127 }
 coverage = []
 
 [dependencies]
-clap = { version = "4.5.33", features = ["cargo"] }
+clap = { version = "4.5.34", features = ["cargo"] }
 color-eyre = { git = "https://github.com/eyre-rs/eyre", rev = "c4ee249f7c51dc6452e8704ae8d117d90d6eeebc" }
 dotenvy = "0.15.7"
 libc = "0.2.171"
