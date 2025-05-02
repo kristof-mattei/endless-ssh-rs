@@ -77,12 +77,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "autocfg"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
-
-[[package]]
 name = "backtrace"
 version = "0.3.74"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -144,8 +138,9 @@ checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
 name = "color-eyre"
-version = "0.6.3"
-source = "git+https://github.com/eyre-rs/eyre?rev=c4ee249f7c51dc6452e8704ae8d117d90d6eeebc#c4ee249f7c51dc6452e8704ae8d117d90d6eeebc"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6e1761c0e16f8883bbbb8ce5990867f4f06bf11a0253da6495a04ce4b6ef0ec"
 dependencies = [
  "backtrace",
  "color-spantrace",
@@ -159,7 +154,8 @@ dependencies = [
 [[package]]
 name = "color-spantrace"
 version = "0.2.2"
-source = "git+https://github.com/eyre-rs/eyre?rev=c4ee249f7c51dc6452e8704ae8d117d90d6eeebc#c4ee249f7c51dc6452e8704ae8d117d90d6eeebc"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ddd8d5bfda1e11a501d0a7303f3bfed9aa632ebdb859be40d0fd70478ed70d5"
 dependencies = [
  "once_cell",
  "owo-colors",
@@ -215,10 +211,10 @@ dependencies = [
 
 [[package]]
 name = "eyre"
-version = "1.0.0"
-source = "git+https://github.com/eyre-rs/eyre?rev=c4ee249f7c51dc6452e8704ae8d117d90d6eeebc#c4ee249f7c51dc6452e8704ae8d117d90d6eeebc"
+version = "0.6.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7cd915d99f24784cdc19fd37ef22b97e3ff0ae756c7e492e9fbfe897d61e2aec"
 dependencies = [
- "autocfg",
  "indenter",
  "once_cell",
 ]
