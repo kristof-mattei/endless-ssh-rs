@@ -1,21 +1,11 @@
-# Rust toolchain setup
-FROM --platform=${BUILDPLATFORM} rust:1.90.0-trixie@sha256:eabb786e74b520e7ea45baca03ea20c3e8c6dc037c392d457badf05d8e5818b5 AS rust-base
+FROM --platform=${BUILDPLATFORM} rust:1.90.0-alpine AS rust-base
 
 ARG APPLICATION_NAME
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN rm -f /etc/apt/apt.conf.d/docker-clean \
-    && echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
-
-# borrowed (Ba Dum Tss!) from
-# https://github.com/pablodeymo/rust-musl-builder/blob/7a7ea3e909b1ef00c177d9eeac32d8c9d7d6a08c/Dockerfile#L48-L49
-RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,id=apt-lib,target=/var/lib/apt,sharing=locked \
-    apt-get update \
-    && apt-get upgrade --yes \
-    && apt-get install --no-install-recommends --yes \
-        build-essential \
-        musl-dev
+RUN --mount=type=cache,id=apk-cache,target=/var/cache/apk,sharing=locked \
+    apk --update add \
+    bash clang llvm
 
 FROM rust-base AS rust-linux-amd64
 ARG TARGET=x86_64-unknown-linux-musl
@@ -29,8 +19,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 COPY ./build-scripts /build-scripts
 
-RUN --mount=type=cache,id=apt-cache-${TARGET},from=rust-base,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,id=apt-lib-${TARGET},from=rust-base,target=/var/lib/apt,sharing=locked \
+RUN --mount=type=cache,id=apk-cache-${TARGET},from=rust-base,target=/var/cache/apk,sharing=locked \
     /build-scripts/setup-env.sh
 
 RUN rustup target add ${TARGET}
