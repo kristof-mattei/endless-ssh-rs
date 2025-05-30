@@ -43,7 +43,7 @@ fn main() -> Result<(), color_eyre::Report> {
         .install()?;
 
     let rust_log_value = env::var(EnvFilter::DEFAULT_ENV)
-        .unwrap_or_else(|_| format!("INFO,{}=TRACE", env!("CARGO_PKG_NAME").replace('-', "_")));
+        .unwrap_or_else(|_| format!("INFO,{}=TRACE", env!("CARGO_CRATE_NAME")));
 
     // set up logger
     // from_env defaults to RUST_LOG
