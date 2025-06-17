@@ -43,7 +43,7 @@ non_ascii_idents = { level = "deny", priority = 127 }
 clap = { version = "4.5.40", features = ["cargo"] }
 color-eyre = "0.6.5"
 dotenvy = "0.15.7"
-libc = "0.2.173"
+libc = "0.2.174"
 mockall = "0.13.1"
 mockall_double = "0.3.1"
 rand = "0.9.1"
