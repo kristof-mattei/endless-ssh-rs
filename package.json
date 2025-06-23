@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/kristof-mattei/endless-ssh-rs#readme",
   "devDependencies": {
-    "prettier": "3.5.3",
+    "prettier": "3.6.0",
     "prettier-plugin-sh": "0.17.4"
   },
   "publishConfig": {
