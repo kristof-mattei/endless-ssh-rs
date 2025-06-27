@@ -26,7 +26,6 @@ impl Default for Config {
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum BindFamily {
     Ipv4,
-    #[allow(dead_code)]
     Ipv6,
     DualStack,
 }

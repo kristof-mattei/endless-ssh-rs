@@ -18,7 +18,7 @@ pub(crate) fn set_receive_buffer_size(
     // resource usage and slows down the remote end.
     let value: i32 = i32::try_from(size_in_bytes).expect("Byte buffer didn't fit in an i32");
 
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_possible_truncation)]
     let r: c_int = unsafe {
         setsockopt(
             tcp_stream.as_raw_fd(),
@@ -36,7 +36,7 @@ pub(crate) fn set_receive_buffer_size(
     Ok(())
 }
 
-#[allow(unused)]
+#[expect(unused)]
 pub(crate) fn set_up_handler(
     signum: c_int,
     handler: extern "C" fn(_: c_int),

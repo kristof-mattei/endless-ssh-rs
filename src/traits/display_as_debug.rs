@@ -1,4 +1,4 @@
-#[allow(dead_code)]
+#[cfg_attr(not(test), expect(dead_code))]
 pub(crate) trait PrettyPrinterWrapper {
     fn display_as_debug(&self) -> DisplayAsDebugWrapper<Self>
     where

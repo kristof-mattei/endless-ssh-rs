@@ -1,7 +1,7 @@
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
-#[allow(unused)]
+#[expect(unused)]
 pub(crate) fn offset_datetime_formatter(
     offset_datetime: &OffsetDateTime,
     f: &mut std::fmt::Formatter<'_>,

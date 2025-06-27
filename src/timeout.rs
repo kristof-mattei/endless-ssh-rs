@@ -29,7 +29,7 @@ impl Timeout {
         }
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub(crate) fn as_c_timespec(&self) -> Option<timespec> {
         match self {
             Timeout::Infinite => None,
