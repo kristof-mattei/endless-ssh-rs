@@ -3,6 +3,13 @@ use mockall::automock;
 use rand::Rng;
 use rand::rngs::ThreadRng;
 
+trait GetRandomOld {
+    fn gen_range<T, R>(&mut self, range: R) -> T
+    where
+        T: SampleUniform + 'static,
+        R: SampleRange<T> + 'static;
+}
+
 #[automock]
 trait GetRandom {
     fn gen_range<T, R>(&mut self, range: R) -> T
