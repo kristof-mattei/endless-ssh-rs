@@ -1,4 +1,4 @@
-#[allow(dead_code)]
+#![allow(dead_code)]
 use ::rand::distr::uniform::{SampleRange, SampleUniform};
 use mockall::automock;
 use rand::Rng;
