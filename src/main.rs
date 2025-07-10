@@ -94,10 +94,10 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
     {
         tasks.spawn(listener::listen_forever(
             client_sender.clone(),
-            semaphore.clone(),
-            config.clone(),
+            Arc::clone(&semaphore),
+            Arc::clone(&config),
             token.clone(),
-            statistics.clone(),
+            Arc::clone(&statistics),
         ));
     }
 
@@ -106,16 +106,16 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
         tasks.spawn(process_clients_forever(
             client_sender.clone(),
             client_receiver,
-            semaphore.clone(),
+            Arc::clone(&semaphore),
             token.clone(),
-            statistics.clone(),
-            config.clone(),
+            Arc::clone(&statistics),
+            Arc::clone(&config),
         ));
     }
 
     {
         let token = token.clone();
-        let statistics = statistics.clone();
+        let statistics = Arc::clone(&statistics);
 
         tasks.spawn(async move {
             let _guard = token.clone().drop_guard();
