@@ -1,15 +1,15 @@
 [package]
 name = "endless-ssh-rs"
-# don't change this, it's updated before an actual build by update-version.sh
 version = "0.0.0-development"
 edition = "2024"
 rust-version = "1.88.0"
 authors = ["Kristof Mattei"]
 description = "endless-ssh-rs"
-license-file = "LICENSE"
+license = "MIT"
 categories = ["ssh", "utility"]
 keywords = ["ssh", "tarpit", "script-kiddies"]
 repository = "https://github.com/kristof-mattei/endless-ssh-rs"
+include = ["src/**", "/LICENSE", "/LICENSE-*"]
 
 [lints.clippy]
 # don't stop from compiling / running
