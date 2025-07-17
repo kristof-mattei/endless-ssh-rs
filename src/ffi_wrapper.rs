@@ -1,6 +1,6 @@
 use std::io::Error;
 use std::mem::{MaybeUninit, size_of_val};
-use std::os::unix::prelude::AsRawFd;
+use std::os::unix::prelude::AsRawFd as _;
 use std::ptr::{addr_of, null_mut};
 
 use color_eyre::eyre;

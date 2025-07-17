@@ -67,7 +67,7 @@ where
 mod tests {
     use std::fmt::Formatter;
 
-    use crate::traits::display_as_debug::PrettyPrinterWrapper;
+    use crate::traits::display_as_debug::PrettyPrinterWrapper as _;
 
     #[test]
     fn display_as_debug() {

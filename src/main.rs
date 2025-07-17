@@ -26,8 +26,8 @@ use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
 use tracing::{Level, event};
 use tracing_subscriber::EnvFilter;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::layer::SubscriberExt as _;
+use tracing_subscriber::util::SubscriberInitExt as _;
 
 use crate::cli::parse_cli;
 use crate::statistics::Statistics;
