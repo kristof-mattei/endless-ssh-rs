@@ -3,14 +3,14 @@ use std::fmt::Display;
 use libc::timespec;
 use time::Duration;
 
-pub(crate) enum Timeout {
+pub enum Timeout {
     Infinite,
     Duration(Duration),
 }
 
 impl std::fmt::Debug for Timeout {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
+        match *self {
             Self::Infinite => write!(f, "Infinite"),
             Self::Duration(arg0) => write!(f, "{}", arg0),
         }
@@ -18,20 +18,20 @@ impl std::fmt::Debug for Timeout {
 }
 
 impl Timeout {
-    pub(crate) fn as_c_timeout(&self) -> i32 {
+    pub fn as_c_timeout(&self) -> i32 {
         // note the + 1
         // Duration stores data as seconds and nanoseconds internally.
         // if the nanoseconds < 1 milliseconds it gets lost
         // so we add one to make sure we always wait until the duration has passed
-        match self {
+        match *self {
             Timeout::Infinite => -1,
             Timeout::Duration(m) => i32::try_from(m.whole_milliseconds() + 1).unwrap_or(i32::MAX),
         }
     }
 
-    #[expect(dead_code)]
-    pub(crate) fn as_c_timespec(&self) -> Option<timespec> {
-        match self {
+    #[expect(unused, reason = "Library code")]
+    pub fn as_c_timespec(&self) -> Option<timespec> {
+        match *self {
             Timeout::Infinite => None,
             Timeout::Duration(m) => Some(timespec {
                 tv_sec: m.whole_seconds(),

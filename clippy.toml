@@ -1,1 +1,8 @@
-absolute-paths-allowed-crates = ["std"]
+absolute-paths-allowed-crates = [
+    "clap",
+    "color_eyre",
+    "hyper",
+    "std",
+    "tracing_subscriber",
+    "tokio",
+]

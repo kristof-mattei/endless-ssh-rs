@@ -88,7 +88,7 @@ fn build_clap_matcher() -> Command {
         )
 }
 
-pub(crate) fn parse_cli() -> Result<Config, eyre::Error> {
+pub fn parse_cli() -> Result<Config, eyre::Error> {
     parse_cli_from(env::args_os())
 }
 
@@ -105,10 +105,10 @@ where
         matches.get_one("only_4").unwrap_or(&false),
         matches.get_one("only_6").unwrap_or(&false),
     ) {
-        (true, false) => {
+        (&true, &false) => {
             config.set_bind_family_ipv4_only();
         },
-        (false, true) => {
+        (&false, &true) => {
             config.set_bind_family_ipv6_only();
             event!(Level::WARN, "Ipv6 only currently implies dual stack");
         },
@@ -201,6 +201,7 @@ mod tests {
     fn bad_cli_options_1() {
         let result = parse_factory("foo bar");
 
+        #[expect(unused_must_use, reason = "Testing")]
         result.unwrap_err();
     }
 
@@ -208,6 +209,7 @@ mod tests {
     fn bad_cli_options_2() {
         let result = parse_factory("endless-ssh-rs bar");
 
+        #[expect(unused_must_use, reason = "Testing")]
         result.unwrap_err();
     }
 
@@ -267,6 +269,7 @@ mod tests {
     fn ensures_minimum_line_length() {
         let result = parse_factory("endless-ssh-rs --max-line-length 2");
 
+        #[expect(unused_must_use, reason = "Testing")]
         result.unwrap_err();
     }
 
@@ -312,6 +315,7 @@ mod tests {
     fn specifying_ipv4_and_ipv6_throw_error() {
         let result = parse_factory("endless-ssh-rs -4 -6");
 
+        #[expect(unused_must_use, reason = "Testing")]
         result.unwrap_err();
     }
 }

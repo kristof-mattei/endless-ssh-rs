@@ -19,7 +19,7 @@ struct Listener<'c> {
     listener: TcpListener,
 }
 
-pub(crate) async fn listen_forever(
+pub async fn listen_forever(
     client_sender: tokio::sync::mpsc::Sender<Client<TcpStream>>,
     semaphore: Arc<Semaphore>,
     config: Arc<Config>,
@@ -40,25 +40,31 @@ pub(crate) async fn listen_forever(
     event!(Level::INFO, message = "Bound and listening!", listener=?listener.listener);
 
     loop {
-        tokio::select! {
-            biased;
-            () = token.cancelled() => {
-                break;
-            },
-            result = listener.accept(&client_sender, &semaphore, &statistics) => {
-                if let Err(error) = result {
-                    event!(Level::ERROR, ?error);
-
-                    // TODO properly log errors
+        #[expect(
+            clippy::pattern_type_mismatch,
+            reason = "Can't seem to fix this with tokio macro matching"
+        )]
+        {
+            tokio::select! {
+                biased;
+                () = token.cancelled() => {
                     break;
-                }
-            },
-        };
+                },
+                result = listener.accept(&client_sender, &semaphore, &statistics) => {
+                    if let Err(error) = result {
+                        event!(Level::ERROR, ?error);
+
+                        // TODO properly log errors
+                        break;
+                    }
+                },
+            };
+        }
     }
 }
 
 impl<'c> Listener<'c> {
-    pub(crate) async fn bind(config: &'c Config) -> Result<Self, color_eyre::Report> {
+    pub async fn bind(config: &'c Config) -> Result<Self, color_eyre::Report> {
         let sa = match config.bind_family {
             BindFamily::Ipv4 => {
                 SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, config.port.get()))
@@ -79,7 +85,7 @@ impl<'c> Listener<'c> {
         Ok(Self { config, listener })
     }
 
-    pub(crate) async fn accept(
+    pub async fn accept(
         &self,
         client_sender: &Sender<Client<TcpStream>>,
         semaphore: &Semaphore,

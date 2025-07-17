@@ -67,7 +67,7 @@ mod tests {
     use crate::line::randline_from;
 
     #[test]
-    fn test_randline() {
+    fn randline() {
         // given
         // mock rng
         let mut mock_rng = GetRandom::new();
@@ -94,7 +94,7 @@ mod tests {
     }
 
     #[test]
-    fn test_randline_carriage_return_line_feed() {
+    fn randline_carriage_return_line_feed() {
         // given
         // mock rng
         let mut ctx = GetRandom::new();
@@ -119,7 +119,7 @@ mod tests {
     }
 
     #[test]
-    fn test_randline_no_ssh_prefix() {
+    fn randline_no_ssh_prefix() {
         // given
         // mock rng
         let mut ctx = GetRandom::new();

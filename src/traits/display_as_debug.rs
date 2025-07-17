@@ -1,5 +1,5 @@
-#[cfg_attr(not(test), expect(dead_code))]
-pub(crate) trait PrettyPrinterWrapper {
+#[cfg_attr(not(test), expect(unused, reason = "Not used outside of testing"))]
+pub trait PrettyPrinterWrapper {
     fn display_as_debug(&self) -> DisplayAsDebugWrapper<Self>
     where
         Self: std::fmt::Display,
@@ -20,7 +20,7 @@ pub(crate) trait PrettyPrinterWrapper {
 
 impl<T> PrettyPrinterWrapper for T {}
 
-pub(crate) struct DisplayAsDebugWrapper<'t, T>
+pub struct DisplayAsDebugWrapper<'t, T>
 where
     T: std::fmt::Display + ?Sized,
 {
@@ -36,7 +36,7 @@ where
     }
 }
 
-pub(crate) struct PrettyPrinter<'t, T, F>
+pub struct PrettyPrinter<'t, T, F>
 where
     F: Fn(&'t T, &mut std::fmt::Formatter<'_>) -> std::fmt::Result,
     T: ?Sized,

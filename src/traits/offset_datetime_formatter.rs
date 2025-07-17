@@ -1,8 +1,8 @@
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
-#[expect(unused)]
-pub(crate) fn offset_datetime_formatter(
+#[expect(unused, reason = "Library code")]
+pub fn offset_datetime_formatter(
     offset_datetime: &OffsetDateTime,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
