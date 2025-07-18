@@ -11,7 +11,6 @@ use tracing::{Level, event};
 use crate::SIZE_IN_BYTES;
 use crate::client::Client;
 use crate::config::{BindFamily, Config};
-use crate::ffi_wrapper::set_receive_buffer_size;
 use crate::statistics::Statistics;
 
 struct Listener<'c> {
@@ -102,7 +101,10 @@ impl<'c> Listener<'c> {
             Ok((socket, addr)) => {
                 // Set the smallest possible recieve buffer. This reduces local
                 // resource usage and slows down the remote end.
-                if let Err(error) = set_receive_buffer_size(&socket, SIZE_IN_BYTES) {
+
+                if let Err(error) =
+                    socket2::SockRef::from(&socket).set_recv_buffer_size(SIZE_IN_BYTES)
+                {
                     event!(
                         Level::ERROR,
                         ?error,
