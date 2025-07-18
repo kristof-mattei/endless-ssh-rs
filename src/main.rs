@@ -26,8 +26,8 @@ use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
 use tracing::{Level, event};
 use tracing_subscriber::EnvFilter;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::layer::SubscriberExt as _;
+use tracing_subscriber::util::SubscriberInitExt as _;
 
 use crate::cli::parse_cli;
 use crate::statistics::Statistics;
@@ -121,7 +121,7 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
             let _guard = token.clone().drop_guard();
 
             while let Some(()) = signal_handlers::wait_for_sigusr1().await {
-                statistics.read().await.log_totals::<()>(&[]);
+                statistics.read().await.log_totals::<(), _>(&[]);
             }
         });
     }
@@ -131,19 +131,25 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
     // * ctrl + c (SIGINT)
     // * a message on the shutdown channel, sent either by the server task or
     // another task when they complete (which means they failed)
-    tokio::select! {
-        _ = signal_handlers::wait_for_sigint() => {
-            // we completed because ...
-            event!(Level::WARN, message = "CTRL+C detected, stopping all tasks");
-        },
-        _ = signal_handlers::wait_for_sigterm() => {
-            // we completed because ...
-            event!(Level::WARN, message = "Sigterm detected, stopping all tasks");
-        },
-        () = token.cancelled() => {
-            event!(Level::WARN, "Underlying task stopped, stopping all others tasks");
-        },
-    };
+    #[expect(
+        clippy::pattern_type_mismatch,
+        reason = "Can't seem to fix this with tokio macro matching"
+    )]
+    {
+        tokio::select! {
+            _ = signal_handlers::wait_for_sigint() => {
+                // we completed because ...
+                event!(Level::WARN, message = "CTRL+C detected, stopping all tasks");
+            },
+            _ = signal_handlers::wait_for_sigterm() => {
+                // we completed because ...
+                event!(Level::WARN, message = "Sigterm detected, stopping all tasks");
+            },
+            () = token.cancelled() => {
+                event!(Level::WARN, "Underlying task stopped, stopping all others tasks");
+            },
+        };
+    }
 
     // backup, in case we forgot a dropguard somewhere
     token.cancel();
@@ -158,7 +164,7 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
     }
 
     {
-        (statistics.read().await).log_totals::<()>(&[]);
+        (statistics.read().await).log_totals::<(), _>(&[]);
     }
 
     event!(Level::INFO, "Goodbye");

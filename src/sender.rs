@@ -4,8 +4,8 @@ use tracing::{Level, event};
 
 use crate::line::randline;
 
-pub(crate) async fn sendline(
-    target: &mut (impl tokio::io::AsyncWriteExt + std::marker::Unpin + std::fmt::Debug),
+pub async fn sendline<T: tokio::io::AsyncWriteExt + std::marker::Unpin + std::fmt::Debug>(
+    target: &mut T,
     max_length: usize,
 ) -> Result<usize, ()> {
     let bytes = randline(max_length);
@@ -34,23 +34,23 @@ pub(crate) async fn sendline(
         },
         Err(error) => {
             // something went wrong sending the data. It happens.
-            match error.kind() {
-                ErrorKind::ConnectionReset | ErrorKind::TimedOut | ErrorKind::BrokenPipe => {
-                    event!(
-                        Level::INFO,
-                        ?target,
-                        ?error,
-                        "Failed to send data to client, client gone",
-                    );
-                },
-                _ => {
-                    event!(
-                        Level::WARN,
-                        ?target,
-                        ?error,
-                        "Failed to send data to client"
-                    );
-                },
+            if matches!(
+                error.kind(),
+                ErrorKind::ConnectionReset | ErrorKind::TimedOut | ErrorKind::BrokenPipe
+            ) {
+                event!(
+                    Level::INFO,
+                    ?target,
+                    ?error,
+                    "Failed to send data to client, client gone",
+                );
+            } else {
+                event!(
+                    Level::WARN,
+                    ?target,
+                    ?error,
+                    "Failed to send data to client"
+                );
             }
 
             Err(())
@@ -94,7 +94,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_ok() {
+    async fn ok() {
         #[derive(Debug)]
         struct OkWrite {
             written: usize,
@@ -135,7 +135,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_fail_not_connected() {
+    async fn fail_not_connected() {
         let error_not_connected = ErrorWrite {
             error: ErrorKind::NotConnected,
         };
@@ -148,7 +148,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_pass_would_block() {
+    async fn pass_would_block() {
         let error_would_block = ErrorWrite {
             error: ErrorKind::WouldBlock,
         };
@@ -161,7 +161,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_error_connection_reset() {
+    async fn error_connection_reset() {
         let error_connection_reset = ErrorWrite {
             error: ErrorKind::ConnectionReset,
         };
