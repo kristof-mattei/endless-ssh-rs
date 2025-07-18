@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 
 use clap::parser::ValueSource;
 use clap::{Arg, ArgAction, Command, command, value_parser};
-use color_eyre::eyre::{self, WrapErr};
+use color_eyre::eyre::{self, WrapErr as _};
 use tracing::{Level, event};
 
 use crate::config::{
@@ -48,7 +48,7 @@ fn build_clap_matcher() -> Command {
                 .action(ArgAction::Set)
                 .default_value(DEFAULT_DELAY_MS_VALUE.as_str())
                 .value_parser(
-                    value_parser!(u64).range(u64::from(1u32)..=u64::try_from(i32::MAX).unwrap()),
+                    value_parser!(u64).range(u64::from(1_u32)..=u64::try_from(i32::MAX).unwrap()),
                 ),
         )
         .arg(
@@ -67,7 +67,7 @@ fn build_clap_matcher() -> Command {
                 .help("Maximum number of clients")
                 .display_order(5)
                 .default_value(DEFAULT_MAX_CLIENTS_VALUE.as_str())
-                .value_parser(value_parser!(u64).range(u64::from(1u32)..=u64::from(u32::MAX))),
+                .value_parser(value_parser!(u64).range(u64::from(1_u32)..=u64::from(u32::MAX))),
         )
         .arg(
             Arg::new("port")
@@ -76,7 +76,7 @@ fn build_clap_matcher() -> Command {
                 .help("Listening port")
                 .display_order(6)
                 .default_value(DEFAULT_PORT_VALUE.as_str())
-                .value_parser(value_parser!(u64).range(u64::from(1u16)..=u64::from(u16::MAX))),
+                .value_parser(value_parser!(u64).range(u64::from(1_u16)..=u64::from(u16::MAX))),
         )
         .arg(
             Arg::new("help")
@@ -88,7 +88,7 @@ fn build_clap_matcher() -> Command {
         )
 }
 
-pub(crate) fn parse_cli() -> Result<Config, eyre::Error> {
+pub fn parse_cli() -> Result<Config, eyre::Error> {
     parse_cli_from(env::args_os())
 }
 
@@ -105,10 +105,10 @@ where
         matches.get_one("only_4").unwrap_or(&false),
         matches.get_one("only_6").unwrap_or(&false),
     ) {
-        (true, false) => {
+        (&true, &false) => {
             config.set_bind_family_ipv4_only();
         },
-        (false, true) => {
+        (&false, &true) => {
             config.set_bind_family_ipv6_only();
             event!(Level::WARN, "Ipv6 only currently implies dual stack");
         },
@@ -201,14 +201,16 @@ mod tests {
     fn bad_cli_options_1() {
         let result = parse_factory("foo bar");
 
-        assert!(result.is_err());
+        #[expect(unused_must_use, reason = "Testing")]
+        result.unwrap_err();
     }
 
     #[test]
     fn bad_cli_options_2() {
         let result = parse_factory("endless-ssh-rs bar");
 
-        assert!(result.is_err());
+        #[expect(unused_must_use, reason = "Testing")]
+        result.unwrap_err();
     }
 
     #[test]
@@ -267,7 +269,8 @@ mod tests {
     fn ensures_minimum_line_length() {
         let result = parse_factory("endless-ssh-rs --max-line-length 2");
 
-        assert!(result.is_err());
+        #[expect(unused_must_use, reason = "Testing")]
+        result.unwrap_err();
     }
 
     #[test]
@@ -312,6 +315,7 @@ mod tests {
     fn specifying_ipv4_and_ipv6_throw_error() {
         let result = parse_factory("endless-ssh-rs -4 -6");
 
-        assert!(result.is_err());
+        #[expect(unused_must_use, reason = "Testing")]
+        result.unwrap_err();
     }
 }

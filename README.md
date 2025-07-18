@@ -12,3 +12,9 @@ Technologies used:
 - mockall & mockall_double (testing)
 
 Releases can be found [here](https://github.com/kristof-mattei/endless-ssh-rs/releases).
+
+## License
+
+MIT, see [LICENSE](./LICENSE)
+
+`SPDX-License-Identifier: MIT`

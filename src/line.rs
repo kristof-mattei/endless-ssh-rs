@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use ::rand::distr::uniform::{SampleRange, SampleUniform};
 use mockall::automock;
-use rand::Rng;
+use rand::Rng as _;
 use rand::rngs::ThreadRng;
 
 trait GetRandomOld {
@@ -44,7 +44,7 @@ fn randline_from(mut rng: impl GetRandom, maxlen: usize) -> Vec<u8> {
     // with a range we don't need to do - 2
     let len = rng.gen_range(3..=maxlen);
 
-    let mut buffer = vec![0u8; len];
+    let mut buffer = vec![0_u8; len];
 
     for l in buffer.iter_mut().take(len - 2) {
         // ASCII 32 .. (including) ASCII 126
@@ -54,7 +54,7 @@ fn randline_from(mut rng: impl GetRandom, maxlen: usize) -> Vec<u8> {
     buffer
         .get_mut(len - 2..len)
         .expect("minimum length is 3")
-        .copy_from_slice(&[13u8, 10]);
+        .copy_from_slice(&[13_u8, 10]);
 
     // ensure start doesn't begin with "SSH-"
     if buffer.starts_with(b"SSH-") {
@@ -75,7 +75,7 @@ mod tests {
     use crate::line::randline_from;
 
     #[test]
-    fn test_randline() {
+    fn randline() {
         // given
         // mock rng
         let mut mock_rng = GetRandom::new();
@@ -102,7 +102,7 @@ mod tests {
     }
 
     #[test]
-    fn test_randline_carriage_return_line_feed() {
+    fn randline_carriage_return_line_feed() {
         // given
         // mock rng
         let mut ctx = GetRandom::new();
@@ -127,7 +127,7 @@ mod tests {
     }
 
     #[test]
-    fn test_randline_no_ssh_prefix() {
+    fn randline_no_ssh_prefix() {
         // given
         // mock rng
         let mut ctx = GetRandom::new();

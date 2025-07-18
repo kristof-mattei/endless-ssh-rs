@@ -3,12 +3,12 @@ use std::net::SocketAddr;
 use time::{Duration, OffsetDateTime};
 use tracing::{Level, event};
 
-pub(crate) struct Client<S> {
-    pub(crate) time_spent: Duration,
-    pub(crate) send_next: OffsetDateTime,
-    pub(crate) bytes_sent: usize,
-    pub(crate) addr: SocketAddr,
-    pub(crate) tcp_stream: S,
+pub struct Client<S> {
+    pub time_spent: Duration,
+    pub send_next: OffsetDateTime,
+    pub bytes_sent: usize,
+    pub addr: SocketAddr,
+    pub tcp_stream: S,
 }
 
 impl<S> std::cmp::Eq for Client<S> {}
@@ -45,7 +45,7 @@ impl<S> std::fmt::Debug for Client<S> {
 }
 
 impl<S> Client<S> {
-    pub(crate) fn new(stream: S, addr: SocketAddr, start_sending_at: OffsetDateTime) -> Self {
+    pub fn new(stream: S, addr: SocketAddr, start_sending_at: OffsetDateTime) -> Self {
         Self {
             time_spent: Duration::ZERO,
             send_next: start_sending_at,
