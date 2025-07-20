@@ -11,6 +11,33 @@ keywords = ["ssh", "tarpit", "script-kiddies"]
 repository = "https://github.com/kristof-mattei/endless-ssh-rs"
 include = ["src/**", "/LICENSE", "/LICENSE-*"]
 
+[dependencies]
+clap = { version = "4.5.41", features = ["cargo"] }
+color-eyre = "0.6.5"
+dotenvy = "0.15.7"
+libc = "0.2.174"
+mockall = "0.13.1"
+mockall_double = "0.3.1"
+rand = "0.9.1"
+time = { version = "0.3.41", features = ["formatting"] }
+tokio = { version = "1.46.1", features = [
+    "rt-multi-thread",
+    "macros",
+    "time",
+    "signal",
+    "net",
+    "sync",
+    "io-util",
+] }
+tokio-util = "0.7.15"
+tracing = "0.1.41"
+tracing-error = "0.2.1"
+tracing-subscriber = { version = "0.3.19", features = [
+    "env-filter",
+    "time",
+    "tracing-log",
+] }
+
 [lints.clippy]
 # don't stop from compiling / running
 all = "warn"
@@ -176,30 +203,3 @@ uninlined-format-args = { level = "allow", priority = 127 }
 [lints.rust]
 let_underscore_drop = { level = "deny", priority = 127 }
 non_ascii_idents = { level = "deny", priority = 127 }
-
-[dependencies]
-clap = { version = "4.5.41", features = ["cargo"] }
-color-eyre = "0.6.5"
-dotenvy = "0.15.7"
-libc = "0.2.174"
-mockall = "0.13.1"
-mockall_double = "0.3.1"
-rand = "0.9.1"
-time = { version = "0.3.41", features = ["formatting"] }
-tokio = { version = "1.46.1", features = [
-    "rt-multi-thread",
-    "macros",
-    "time",
-    "signal",
-    "net",
-    "sync",
-    "io-util",
-] }
-tokio-util = "0.7.15"
-tracing = "0.1.41"
-tracing-error = "0.2.1"
-tracing-subscriber = { version = "0.3.19", features = [
-    "env-filter",
-    "time",
-    "tracing-log",
-] }
