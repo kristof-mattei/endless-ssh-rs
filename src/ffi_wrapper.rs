@@ -48,7 +48,6 @@ pub fn set_up_handler(
     let sa_mask = 0;
 
     #[expect(
-        clippy::as_conversions,
         clippy::fn_to_numeric_cast_any,
         reason = "We actually need the function as a pointer"
     )]
