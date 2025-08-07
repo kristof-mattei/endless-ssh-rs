@@ -38,12 +38,11 @@ pub async fn process_clients_forever(
                 },
                 received_client = client_receiver.recv() => {
                     if let Some(client) = received_client {
-                        if let Some(client) = process_client(client, &semaphore, &config, &statistics).await {
-                            if (client_sender.send(client).await).is_err() {
+                        if let Some(client) = process_client(client, &semaphore, &config, &statistics).await
+                            && (client_sender.send(client).await).is_err() {
                                 event!(Level::ERROR, "Client sender gone");
                                 break;
                             }
-                        }
                     } else {
                         event!(Level::ERROR, "Client receiver gone");
                         break;
