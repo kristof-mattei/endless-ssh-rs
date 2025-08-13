@@ -1,91 +1,113 @@
 use std::env;
 use std::ffi::OsString;
-use std::num::{NonZeroU16, NonZeroU32, NonZeroUsize};
-use std::sync::LazyLock;
+use std::num::{NonZeroU8, NonZeroU16};
+use std::time::Duration;
 
-use clap::parser::ValueSource;
-use clap::{Arg, ArgAction, Command, command, value_parser};
-use color_eyre::eyre::{self, WrapErr as _};
+use clap::error::ErrorKind;
+use clap::{ArgAction, Parser, value_parser};
+use color_eyre::eyre;
 use tracing::{Level, event};
 
 use crate::config::{
-    Config, DEFAULT_DELAY_MS, DEFAULT_MAX_CLIENTS, DEFAULT_MAX_LINE_LENGTH, DEFAULT_PORT,
+    BindFamily, Config, DEFAULT_DELAY_MS, DEFAULT_MAX_CLIENTS, DEFAULT_MAX_LINE_LENGTH,
+    DEFAULT_PORT,
 };
 
-static DEFAULT_PORT_VALUE: LazyLock<String> = LazyLock::new(|| DEFAULT_PORT.to_string());
-static DEFAULT_MAX_CLIENTS_VALUE: LazyLock<String> =
-    LazyLock::new(|| DEFAULT_MAX_CLIENTS.to_string());
-static DEFAULT_DELAY_MS_VALUE: LazyLock<String> = LazyLock::new(|| DEFAULT_DELAY_MS.to_string());
-static DEFAULT_MAX_LINE_LENGTH_VALUE: LazyLock<String> =
-    LazyLock::new(|| DEFAULT_MAX_LINE_LENGTH.to_string());
+fn delay_parser(value: &str) -> Result<Duration, clap::Error> {
+    let timeout_ms = value
+        .parse()
+        .map_err(|_| clap::Error::new(ErrorKind::ValueValidation))?;
 
-fn build_clap_matcher() -> Command {
-    command!()
-        .disable_help_flag(true)
-        .color(clap::ColorChoice::Always)
-        .arg(
-            Arg::new("only_4")
-                .short('4')
-                .help("Bind to IPv4 only")
-                .group("ip_version")
-                .display_order(0)
-                .action(ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("only_6")
-                .short('6')
-                .help("Bind to IPv6 only")
-                .group("ip_version")
-                .display_order(1)
-                .action(ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("delay")
-                .short('d')
-                .long("delay")
-                .help("Message millisecond delay")
-                .display_order(2)
-                .action(ArgAction::Set)
-                .default_value(DEFAULT_DELAY_MS_VALUE.as_str())
-                .value_parser(
-                    value_parser!(u64).range(u64::from(1_u32)..=u64::try_from(i32::MAX).unwrap()),
-                ),
-        )
-        .arg(
-            Arg::new("max-line-length")
-                .short('l')
-                .long("max-line-length")
-                .help("Maximum banner line length (3-255)")
-                .display_order(4)
-                .default_value(DEFAULT_MAX_LINE_LENGTH_VALUE.as_str())
-                .value_parser(value_parser!(u64).range(3..=255)),
-        )
-        .arg(
-            Arg::new("max-clients")
-                .short('m')
-                .long("max-clients")
-                .help("Maximum number of clients")
-                .display_order(5)
-                .default_value(DEFAULT_MAX_CLIENTS_VALUE.as_str())
-                .value_parser(value_parser!(u64).range(u64::from(1_u32)..=u64::from(u32::MAX))),
-        )
-        .arg(
-            Arg::new("port")
-                .short('p')
-                .long("port")
-                .help("Listening port")
-                .display_order(6)
-                .default_value(DEFAULT_PORT_VALUE.as_str())
-                .value_parser(value_parser!(u64).range(u64::from(1_u16)..=u64::from(u16::MAX))),
-        )
-        .arg(
-            Arg::new("help")
-                .short('h')
-                .long("help")
-                .help("Print this help message and exit")
-                .display_order(9)
-                .action(ArgAction::Help),
-        )
+    Ok(Duration::from_millis(timeout_ms))
+}
+
+#[derive(Debug, Parser)]
+#[command(disable_help_flag = true)]
+pub struct Cli {
+    #[clap(
+        short = '4',
+        long = "only_4",
+        action = ArgAction::SetTrue,
+        help = "Bind to IPv4 only",
+        group = "ip_version"
+    )]
+    only_4: bool,
+
+    #[clap(
+        short = '6',
+        long = "only_6",
+        action = ArgAction::SetTrue,
+        help = "Bind to IPv6 only",
+        group = "ip_version"
+    )]
+    only_6: bool,
+
+    #[clap(
+        short = 'd',
+        long = "delay",
+        default_value = DEFAULT_DELAY_MS.to_string(),
+        help = "Message millisecond delay",
+        value_parser = delay_parser
+    )]
+    delay: Duration,
+
+    #[clap(
+        short = 'l',
+        long = "max-line-length",
+        default_value_t = DEFAULT_MAX_LINE_LENGTH.get(),
+        help = "Maximum banner line length (3-255)",
+        value_parser = value_parser!(u8).range(3..=255)
+    )]
+    max_line_length: u8,
+
+    #[clap(
+        short = 'm',
+        long = "max-clients",
+        default_value_t = DEFAULT_MAX_CLIENTS.get(),
+        help = "Maximum number of clients",
+        value_parser = value_parser!(u8).range(1..)
+    )]
+    max_clients: u8,
+
+    #[clap(
+        short = 'p',
+        long = "port",
+        default_value_t = DEFAULT_PORT.get(),
+        help = "Listening port",
+        value_parser = value_parser!(u16).range(1..)
+    )]
+    port: u16,
+
+    #[clap(
+        short = 'h',
+        long = "help",
+        help = "Print this help message and exit",
+        action = ArgAction::Help,
+    )]
+    help: (),
+}
+
+impl From<Cli> for Config {
+    fn from(matches: Cli) -> Self {
+        let bind_family = match (matches.only_4, matches.only_6) {
+            (true, false) => BindFamily::Ipv4,
+            (false, true) => {
+                event!(Level::WARN, "Ipv6 only currently implies dual stack");
+
+                BindFamily::Ipv6
+            },
+            (false, false) => BindFamily::DualStack,
+            (true, true) => unreachable!("Guaranteed by clap"),
+        };
+
+        Config {
+            bind_family,
+            delay: matches.delay,
+            max_clients: NonZeroU8::new(matches.max_clients).expect("Guaranteed by clap"),
+            max_line_length: NonZeroU8::new(matches.max_line_length).expect("Guaranteed by clap"),
+            port: NonZeroU16::new(matches.port).expect("Guaranteed by clap"),
+        }
+    }
 }
 
 pub fn parse_cli() -> Result<Config, eyre::Error> {
@@ -97,93 +119,12 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
-    let matches = build_clap_matcher().try_get_matches_from(from)?;
-
-    let mut config = Config::new();
-
-    match (
-        matches.get_one("only_4").unwrap_or(&false),
-        matches.get_one("only_6").unwrap_or(&false),
-    ) {
-        (&true, &false) => {
-            config.set_bind_family_ipv4_only();
-        },
-        (&false, &true) => {
-            config.set_bind_family_ipv6_only();
-            event!(Level::WARN, "Ipv6 only currently implies dual stack");
-        },
-        _ => {
-            config.set_bind_family_dual_stack();
-        },
-    }
-
-    if let Some(&d) = get_user_cli_value::<u64>(&matches, "delay") {
-        let arg_u32 =
-            u32::try_from(d).wrap_err_with(|| format!("Couldn't convert '{}' to u32", d))?;
-
-        let non_zero_arg = NonZeroU32::try_from(arg_u32)
-            .wrap_err_with(|| format!("{} is not a valid value for delay", arg_u32))?;
-
-        config.set_delay(non_zero_arg);
-    }
-
-    if let Some(&p) = get_user_cli_value::<u64>(&matches, "port") {
-        let arg_u16 =
-            u16::try_from(p).wrap_err_with(|| format!("Couldn't convert '{}' to u16", p))?;
-
-        let non_zero_arg = NonZeroU16::try_from(arg_u16)
-            .wrap_err_with(|| format!("{} is not a valid value for port", arg_u16))?;
-
-        config.set_port(non_zero_arg);
-    }
-
-    if let Some(&l) = get_user_cli_value::<u64>(&matches, "max-line-length") {
-        let arg_usize =
-            usize::try_from(l).wrap_err_with(|| format!("Couldn't convert '{}' to usize", l))?;
-
-        let non_zero_arg = NonZeroUsize::try_from(arg_usize)
-            .wrap_err_with(|| format!("{} is not a valid value for max-line-length", arg_usize))?;
-
-        config.set_max_line_length(non_zero_arg);
-    }
-
-    if let Some(&c) = get_user_cli_value::<u64>(&matches, "max-clients") {
-        let arg_usize =
-            usize::try_from(c).wrap_err_with(|| format!("Couldn't convert '{}' to usize", c))?;
-
-        let non_zero_arg = NonZeroUsize::try_from(arg_usize)
-            .wrap_err_with(|| format!("{} is not a valid value for max-clients", arg_usize))?;
-
-        config.set_max_clients(non_zero_arg);
-    }
-
-    Ok(config)
-}
-
-fn get_user_cli_value<'a, T>(matches: &'a clap::ArgMatches, key: &str) -> Option<&'a T>
-where
-    T: Clone + Send + Sync + 'static,
-{
-    // our CLI has defaults, so we check if the user has provided a value
-    let Some(ValueSource::CommandLine) = matches.value_source(key) else {
-        return None;
-    };
-
-    // NOTE: we might change this later to always use the user's input, as we might want this module
-    // to drive the config's defaults.
-    // I am always confused as to who should do what. Who provides defaults? Who provides upper and lower limits?
-    // Because not everything comes through a CLI. I would love to share this with something like
-    // a yaml file. But then we run into issues with valid values for a type (say 1 for max-line-length) but
-    // that's an invalid number in our logic.
-    // on the other hand there are port 100000 which doesn't even fit into our data type
-
-    // return the value provided by the user
-    matches.get_one::<T>(key)
+    Ok(Cli::try_parse_from(from)?.into())
 }
 
 #[cfg(test)]
 mod tests {
-    use std::num::{NonZeroU16, NonZeroUsize};
+    use std::num::{NonZeroU8, NonZeroU16};
 
     use color_eyre::eyre;
 
@@ -219,7 +160,7 @@ mod tests {
 
         let expected_config = Config {
             port: NonZeroU16::new(2000).unwrap(),
-            ..Default::default()
+            ..Config::default()
         };
 
         assert!(result.is_ok());
@@ -232,7 +173,7 @@ mod tests {
 
         let expected_config = Config {
             delay: std::time::Duration::from_millis(100),
-            ..Default::default()
+            ..Config::default()
         };
 
         assert!(result.is_ok());
@@ -244,8 +185,8 @@ mod tests {
         let result = parse_factory("endless-ssh-rs --max-clients 50");
 
         let expected_config = Config {
-            max_clients: NonZeroUsize::new(50).unwrap(),
-            ..Default::default()
+            max_clients: NonZeroU8::new(50).unwrap(),
+            ..Config::default()
         };
 
         assert!(result.is_ok());
@@ -257,8 +198,8 @@ mod tests {
         let result = parse_factory("endless-ssh-rs --max-line-length 70");
 
         let expected_config = Config {
-            max_line_length: NonZeroUsize::new(70).unwrap(),
-            ..Default::default()
+            max_line_length: NonZeroU8::new(70).unwrap(),
+            ..Config::default()
         };
 
         assert!(result.is_ok());
@@ -279,7 +220,7 @@ mod tests {
 
         let expected_config = Config {
             bind_family: BindFamily::Ipv4,
-            ..Default::default()
+            ..Config::default()
         };
 
         assert!(result.is_ok());
@@ -292,7 +233,7 @@ mod tests {
 
         let expected_config = Config {
             bind_family: BindFamily::Ipv6,
-            ..Default::default()
+            ..Config::default()
         };
 
         assert!(result.is_ok());
@@ -305,7 +246,7 @@ mod tests {
 
         let expected_config = Config {
             bind_family: BindFamily::DualStack,
-            ..Default::default()
+            ..Config::default()
         };
 
         assert!(result.is_ok());

@@ -119,8 +119,8 @@ impl<'c> Listener<'c> {
                             // we have a permit, we can send it on the queue
                             client_sender.send(client)?;
 
-                            let current_clients =
-                                self.config.max_clients.get() - semaphore.available_permits();
+                            let current_clients = usize::from(self.config.max_clients.get())
+                                - semaphore.available_permits();
 
                             event!(
                                 Level::INFO,
