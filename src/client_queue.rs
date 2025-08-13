@@ -1,4 +1,4 @@
-use std::num::NonZeroUsize;
+use std::num::NonZeroU8;
 
 use time::OffsetDateTime;
 use tokio::net::TcpStream;
@@ -14,7 +14,7 @@ use crate::statistics::StatisticsMessage;
 pub async fn process_clients(
     cancellation_token: CancellationToken,
     delay: std::time::Duration,
-    max_line_length: NonZeroUsize,
+    max_line_length: NonZeroU8,
     client_sender: UnboundedSender<Client<TcpStream>>,
     mut client_receiver: UnboundedReceiver<Client<TcpStream>>,
     statistics_sender: UnboundedSender<StatisticsMessage>,
@@ -58,7 +58,7 @@ async fn process_client<S>(
     mut client: Client<S>,
     cancellation_token: CancellationToken,
     delay: std::time::Duration,
-    max_line_length: NonZeroUsize,
+    max_line_length: NonZeroU8,
     statistics_sender: &UnboundedSender<StatisticsMessage>,
 ) -> Option<Client<S>>
 where
@@ -92,7 +92,7 @@ where
     event!(Level::DEBUG, addr = ?client.addr(), "Processing client");
 
     if let Ok(bytes_sent) =
-        sender::sendline(&mut client.tcp_stream_mut(), max_line_length.into()).await
+        sender::sendline(&mut client.tcp_stream_mut(), max_line_length.get().into()).await
     {
         *client.bytes_sent_mut() += bytes_sent;
         *client.time_spent_mut() += delay;

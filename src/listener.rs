@@ -120,7 +120,8 @@ impl<'c> Listener<'c> {
                             client_sender.send(client)?;
 
                             let current_clients =
-                                self.config.max_clients.get() - semaphore.available_permits();
+                                Into::<usize>::into(self.config.max_clients.get())
+                                    - semaphore.available_permits();
 
                             event!(
                                 Level::INFO,

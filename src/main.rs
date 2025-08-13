@@ -12,7 +12,6 @@ mod signal_handlers;
 mod statistics;
 mod timeout;
 mod traits;
-mod utils;
 
 use std::env::{self, VarError};
 use std::sync::Arc;
@@ -95,7 +94,7 @@ async fn start_tasks(config: Arc<Config>) -> Result<(), eyre::Report> {
         tokio::sync::mpsc::unbounded_channel::<Client<TcpStream>>();
 
     // available slots semaphore
-    let semaphore = Arc::new(Semaphore::new(config.max_clients.into()));
+    let semaphore = Arc::new(Semaphore::new(config.max_clients.get().into()));
 
     let tasks = TaskTracker::new();
 
