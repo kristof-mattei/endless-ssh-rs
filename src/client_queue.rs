@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{num::NonZeroUsize, sync::Arc};
 
 use time::OffsetDateTime;
 use tokio::net::TcpStream;
@@ -81,8 +81,11 @@ where
 
     event!(Level::DEBUG, message = "Processing client", addr=?client.addr);
 
-    if let Ok(bytes_sent) =
-        sender::sendline(&mut client.tcp_stream, config.max_line_length.into()).await
+    if let Ok(bytes_sent) = sender::sendline(
+        &mut client.tcp_stream,
+        NonZeroUsize::from(config.max_line_length).get(),
+    )
+    .await
     {
         client.bytes_sent += bytes_sent;
         client.time_spent += config.delay;

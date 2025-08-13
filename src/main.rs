@@ -11,7 +11,6 @@ mod signal_handlers;
 mod statistics;
 mod timeout;
 mod traits;
-mod utils;
 
 use std::env;
 use std::sync::Arc;
@@ -79,10 +78,10 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
 
     // clients channel
     let (client_sender, client_receiver) =
-        tokio::sync::mpsc::channel::<Client<TcpStream>>(config.max_clients.into());
+        tokio::sync::mpsc::channel::<Client<TcpStream>>(config.max_clients.get().into());
 
     // available slots semaphore
-    let semaphore = Arc::new(Semaphore::new(config.max_clients.into()));
+    let semaphore = Arc::new(Semaphore::new(config.max_clients.get().into()));
 
     // this channel is used to communicate between
     // tasks and this function, in the case that a task fails, they'll send a message on the shutdown channel

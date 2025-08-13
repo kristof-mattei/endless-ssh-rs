@@ -1,15 +1,8 @@
 use std::ffi::OsString;
-use std::{
-    env,
-    num::{NonZeroU8, NonZeroU16},
-    time::Duration,
-};
+use std::{env, time::Duration};
 
-use clap::{
-    Arg, ArgAction, Command,
-    builder::{RangedU64ValueParser, TypedValueParser},
-    command, value_parser,
-};
+use clap::Parser;
+use clap::{ArgAction, value_parser};
 use color_eyre::eyre;
 use tracing::{Level, event};
 
@@ -18,81 +11,90 @@ use crate::config::{
     DEFAULT_PORT,
 };
 
-fn port_parser(s: &str) -> Result<NonZeroU16, clap::Error> {
-    let as_u16: u16 = s.parse().unwrap();
+#[derive(Debug, Parser)]
+#[command(disable_help_flag = true)]
+pub struct Cli {
+    #[clap(
+        short = '4',
+        long = "only_4",
+        help = "Bind to IPv4 only",
+        group = "ip_version"
+    )]
+    only_4: bool,
+    #[clap(
+        short = '6',
+        long = "only_6",
+        help = "Bind to IPv6 only",
+        group = "ip_version"
+    )]
+    only_6: bool,
 
-    let as_non_zero = as_u16.try_into().unwrap();
+    #[clap(
+        short = 'd',
+        long = "delay",
+        default_value_t = DEFAULT_DELAY_MS.get(),
+        help = "Message millisecond delay",
+    )]
+    delay: u32,
 
-    Ok(as_non_zero)
+    #[clap(
+        short = 'l',
+        long = "max-line-length",
+        default_value_t = DEFAULT_MAX_LINE_LENGTH.get(),
+        help = "Maximum banner line length (3-255)",
+        value_parser = value_parser!(u8).range(3..=255)
+    )]
+    max_line_length: u8,
+    #[clap(
+        short = 'm',
+        long = "max-clients",
+        default_value_t = DEFAULT_MAX_CLIENTS.get(),
+        help = "Maximum number of clients",
+        value_parser = value_parser!(u8).range(1..)
+    )]
+    max_clients: u8,
+
+    #[clap(
+        short = 'p',
+        long = "port",
+        default_value_t = DEFAULT_PORT.get(),
+        help = "Listening port",
+        value_parser = value_parser!(u16).range(1..)
+    )]
+    port: u16,
+    #[clap(
+        short = 'h',
+        long = "help",
+        help = "Print this help message and exit",
+        action = ArgAction::Help,
+    )]
+    help: (),
 }
 
-fn build_clap_matcher() -> Command {
-    command!()
-        .disable_help_flag(true)
-        .color(clap::ColorChoice::Always)
-        .arg(
-            Arg::new("only_4")
-                .short('4')
-                .help("Bind to IPv4 only")
-                .group("ip_version")
-                .display_order(0)
-                .action(ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("only_6")
-                .short('6')
-                .help("Bind to IPv6 only")
-                .group("ip_version")
-                .display_order(1)
-                .action(ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("delay")
-                .short('d')
-                .long("delay")
-                .help("Message millisecond delay")
-                .display_order(2)
-                .action(ArgAction::Set)
-                .default_value(DEFAULT_DELAY_MS.to_string())
-                .value_parser(
-                    value_parser!(u64).range(u64::from(1_u32)..=u64::try_from(i32::MAX).unwrap()),
-                ),
-        )
-        .arg(
-            Arg::new("max-line-length")
-                .short('l')
-                .long("max-line-length")
-                .help("Maximum banner line length (3-255)")
-                .display_order(4)
-                .default_value(DEFAULT_MAX_LINE_LENGTH.to_string())
-                .value_parser(value_parser!(u64).range(3..=255)),
-        )
-        .arg(
-            Arg::new("max-clients")
-                .short('m')
-                .long("max-clients")
-                .help("Maximum number of clients")
-                .display_order(5)
-                .default_value(DEFAULT_MAX_CLIENTS.to_string())
-                .value_parser(value_parser!(u64).range(u64::from(1_u32)..=u64::from(u32::MAX))),
-        )
-        .arg(
-            Arg::new("port")
-                .short('p')
-                .long("port")
-                .help("Listening port")
-                .display_order(6)
-                .default_value(DEFAULT_PORT.to_string())
-                .value_parser(port_parser),
-        )
-        .arg(
-            Arg::new("help")
-                .short('h')
-                .long("help")
-                .help("Print this help message and exit")
-                .display_order(9)
-                .action(ArgAction::Help),
-        )
+impl From<Cli> for Config {
+    fn from(matches: Cli) -> Self {
+        let bind_family = match (matches.only_4, matches.only_6) {
+            (true, false) => BindFamily::Ipv4,
+            (false, true) => {
+                event!(Level::WARN, "Ipv6 only currently implies dual stack");
+                BindFamily::Ipv6
+            },
+            _ => BindFamily::DualStack,
+        };
+
+        let delay = matches.delay;
+        let port = matches.port;
+        let max_line_length = matches.max_line_length;
+        let max_clients = matches.max_clients;
+
+        Config {
+            bind_family,
+            delay: Duration::from_millis(delay.into()),
+            port: port.try_into().expect("Guaranteed by clap"),
+            max_line_length: max_line_length.try_into().expect("Guaranteed by clap"),
+            max_clients: max_clients.try_into().expect("Guaranteed by clap"),
+        }
+    }
 }
 
 pub fn parse_cli() -> Result<Config, eyre::Error> {
@@ -104,35 +106,7 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
-    let matches = build_clap_matcher().try_get_matches_from(from)?;
-
-    let bind_family = match (
-        matches.get_one("only_4").unwrap_or(&false),
-        matches.get_one("only_6").unwrap_or(&false),
-    ) {
-        (&true, &false) => BindFamily::Ipv4,
-        (&false, &true) => {
-            event!(Level::WARN, "Ipv6 only currently implies dual stack");
-            BindFamily::Ipv6
-        },
-        _ => BindFamily::DualStack,
-    };
-
-    let delay = matches
-        .get_one("delay")
-        .map(|&d| Duration::from_millis(d))
-        .expect("Guaranteed by clap");
-    let port = *matches.get_one::<NonZeroU16>("port").unwrap();
-    let max_line_length = *matches.get_one::<NonZeroU8>("max-line-length").unwrap();
-    let max_clients = *matches.get_one::<NonZeroU8>("max-clients").unwrap();
-
-    Ok(Config {
-        port,
-        delay,
-        max_line_length,
-        max_clients,
-        bind_family,
-    })
+    Ok(Cli::try_parse_from(from)?.into())
 }
 
 #[cfg(test)]

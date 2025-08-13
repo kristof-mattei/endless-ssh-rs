@@ -1,5 +1,8 @@
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::sync::Arc;
+use std::{
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
+    num::NonZeroUsize,
+};
 
 use time::OffsetDateTime;
 use tokio::net::{TcpListener, TcpStream};
@@ -124,8 +127,8 @@ impl<'c> Listener<'c> {
 
                             permit.forget();
 
-                            let current_clients =
-                                self.config.max_clients.get() - semaphore.available_permits();
+                            let current_clients = NonZeroUsize::from(self.config.max_clients).get()
+                                - semaphore.available_permits();
 
                             event!(
                                 Level::INFO,
