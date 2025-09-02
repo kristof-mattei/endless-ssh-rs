@@ -12,7 +12,7 @@ repository = "https://github.com/kristof-mattei/endless-ssh-rs"
 include = ["src/**", "/LICENSE", "/LICENSE-*"]
 
 [dependencies]
-clap = { version = "4.5.46", features = ["cargo"] }
+clap = { version = "4.5.47", features = ["cargo"] }
 color-eyre = "0.6.5"
 dotenvy = "0.15.7"
 libc = "0.2.175"
