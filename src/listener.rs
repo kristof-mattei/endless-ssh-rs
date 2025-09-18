@@ -40,25 +40,19 @@ pub async fn listen_forever(
     event!(Level::INFO, message = "Bound and listening!", listener=?listener.listener);
 
     loop {
-        #[expect(
-            clippy::pattern_type_mismatch,
-            reason = "Can't seem to fix this with tokio macro matching"
-        )]
-        {
-            tokio::select! {
-                biased;
-                () = token.cancelled() => {
-                    break;
-                },
-                result = listener.accept(&client_sender, &semaphore, &statistics) => {
-                    if let Err(error) = result {
-                        event!(Level::ERROR, ?error);
+        tokio::select! {
+            biased;
+            () = token.cancelled() => {
+                break;
+            },
+            result = listener.accept(&client_sender, &semaphore, &statistics) => {
+                if let Err(error) = result {
+                    event!(Level::ERROR, ?error);
 
-                        // TODO properly log errors
-                        break;
-                    }
-                },
-            };
+                    // TODO properly log errors
+                    break;
+                }
+            },
         }
     }
 }
