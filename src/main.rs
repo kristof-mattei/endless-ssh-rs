@@ -120,7 +120,7 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
         tasks.spawn(async move {
             let _guard = token.clone().drop_guard();
 
-            while let Some(()) = signal_handlers::wait_for_sigusr1().await {
+            while let Ok(()) = signal_handlers::wait_for_sigusr1().await {
                 statistics.read().await.log_totals::<(), _>(&[]);
             }
         });
@@ -131,24 +131,26 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
     // * ctrl + c (SIGINT)
     // * a message on the shutdown channel, sent either by the server task or
     // another task when they complete (which means they failed)
-    #[expect(
-        clippy::pattern_type_mismatch,
-        reason = "Can't seem to fix this with tokio macro matching"
-    )]
-    {
-        tokio::select! {
-            _ = signal_handlers::wait_for_sigint() => {
+    tokio::select! {
+        result = signal_handlers::wait_for_sigterm() => {
+            if let Err(error) = result {
+                event!(Level::ERROR, ?error, "Failed to register SIGERM handler, aborting");
+            } else {
                 // we completed because ...
-                event!(Level::WARN, message = "CTRL+C detected, stopping all tasks");
-            },
-            _ = signal_handlers::wait_for_sigterm() => {
+                event!(Level::WARN, "Sigterm detected, stopping all tasks");
+            }
+        },
+        result = signal_handlers::wait_for_sigint() => {
+            if let Err(error) = result {
+                event!(Level::ERROR, ?error, "Failed to register CTRL+C handler, aborting");
+            } else {
                 // we completed because ...
-                event!(Level::WARN, message = "Sigterm detected, stopping all tasks");
-            },
-            () = token.cancelled() => {
-                event!(Level::WARN, "Underlying task stopped, stopping all others tasks");
-            },
-        };
+                event!(Level::WARN, "CTRL+C detected, stopping all tasks");
+            }
+        },
+        () = token.cancelled() => {
+            event!(Level::WARN, "Underlying task stopped, stopping all others tasks");
+        },
     }
 
     // backup, in case we forgot a dropguard somewhere

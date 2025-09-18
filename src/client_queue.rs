@@ -26,29 +26,23 @@ pub async fn process_clients_forever(
     event!(Level::INFO, message = "Processing clients");
 
     loop {
-        #[expect(
-            clippy::pattern_type_mismatch,
-            reason = "Can't seem to fix this with tokio macro matching"
-        )]
-        {
-            tokio::select! {
-                biased;
-                () = token.cancelled() => {
+        tokio::select! {
+            biased;
+            () = token.cancelled() => {
+                break;
+            },
+            received_client = client_receiver.recv() => {
+                if let Some(client) = received_client {
+                    if let Some(client) = process_client(client, &semaphore, &config, &statistics).await
+                        && (client_sender.send(client).await).is_err() {
+                            event!(Level::ERROR, "Client sender gone");
+                            break;
+                        }
+                } else {
+                    event!(Level::ERROR, "Client receiver gone");
                     break;
-                },
-                received_client = client_receiver.recv() => {
-                    if let Some(client) = received_client {
-                        if let Some(client) = process_client(client, &semaphore, &config, &statistics).await
-                            && (client_sender.send(client).await).is_err() {
-                                event!(Level::ERROR, "Client sender gone");
-                                break;
-                            }
-                    } else {
-                        event!(Level::ERROR, "Client receiver gone");
-                        break;
-                    }
-                },
-            };
+                }
+            },
         }
     }
 }
