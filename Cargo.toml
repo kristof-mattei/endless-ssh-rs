@@ -2,7 +2,7 @@
 name = "endless-ssh-rs"
 version = "0.0.0-development"
 edition = "2024"
-rust-version = "1.89.0"
+rust-version = "1.90.0"
 authors = ["Kristof Mattei"]
 description = "endless-ssh-rs"
 license = "MIT"
