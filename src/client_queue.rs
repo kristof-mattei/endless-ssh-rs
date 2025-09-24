@@ -14,12 +14,12 @@ use crate::sender;
 use crate::statistics::Statistics;
 
 pub async fn process_clients_forever(
+    config: Arc<Config>,
+    token: CancellationToken,
     client_sender: Sender<Client<TcpStream>>,
     mut client_receiver: Receiver<Client<TcpStream>>,
     semaphore: Arc<Semaphore>,
-    token: CancellationToken,
     statistics: Arc<RwLock<Statistics>>,
-    config: Arc<Config>,
 ) {
     let _guard = token.clone().drop_guard();
 
