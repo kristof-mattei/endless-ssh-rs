@@ -13,56 +13,32 @@ mod timeout;
 mod traits;
 mod utils;
 
-use std::env;
+use std::env::{self, VarError};
 use std::sync::Arc;
 use std::time::Duration;
 
-use client::Client;
-use client_queue::process_clients_forever;
+use color_eyre::config::HookBuilder;
+use color_eyre::eyre;
 use dotenvy::dotenv;
 use tokio::net::TcpStream;
 use tokio::sync::{RwLock, Semaphore};
 use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
+use tokio_util::task::TaskTracker;
 use tracing::{Level, event};
-use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt as _;
 use tracing_subscriber::util::SubscriberInitExt as _;
+use tracing_subscriber::{EnvFilter, Layer as _};
 
 use crate::cli::parse_cli;
+use crate::client::Client;
+use crate::client_queue::process_clients_forever;
+use crate::listener::listen_forever;
 use crate::statistics::Statistics;
 
 const SIZE_IN_BYTES: usize = 1;
 
-fn main() -> Result<(), color_eyre::Report> {
-    // set up .env, if it fails, user didn't provide any
-    let _r = dotenv();
-
-    color_eyre::config::HookBuilder::default()
-        .capture_span_trace_by_default(false)
-        .install()?;
-
-    let rust_log_value = env::var(EnvFilter::DEFAULT_ENV)
-        .unwrap_or_else(|_| format!("INFO,{}=TRACE", env!("CARGO_CRATE_NAME")));
-
-    // set up logger
-    // from_env defaults to RUST_LOG
-    tracing_subscriber::registry()
-        .with(EnvFilter::builder().parse(rust_log_value).unwrap())
-        .with(tracing_subscriber::fmt::layer())
-        .with(tracing_error::ErrorLayer::default())
-        .init();
-
-    // initialize the runtime
-    let rt = tokio::runtime::Runtime::new().unwrap();
-
-    // start service
-    let result: Result<(), color_eyre::Report> = rt.block_on(start_tasks());
-
-    result
-}
-
-async fn start_tasks() -> Result<(), color_eyre::Report> {
+async fn start_tasks() -> Result<(), eyre::Report> {
     let statistics = Arc::new(RwLock::new(Statistics::new()));
 
     let config = Arc::new(parse_cli().inspect_err(|error| {
@@ -89,14 +65,14 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
     // after which we'll gracefully terminate other services
     let token = CancellationToken::new();
 
-    let mut tasks = tokio::task::JoinSet::new();
+    let tasks = TaskTracker::new();
 
     {
-        tasks.spawn(listener::listen_forever(
-            client_sender.clone(),
-            Arc::clone(&semaphore),
+        tasks.spawn(listen_forever(
             Arc::clone(&config),
             token.clone(),
+            client_sender.clone(),
+            Arc::clone(&semaphore),
             Arc::clone(&statistics),
         ));
     }
@@ -104,12 +80,12 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
     {
         // listen to new connection channel, convert into client, push to client channel
         tasks.spawn(process_clients_forever(
+            Arc::clone(&config),
+            token.clone(),
             client_sender.clone(),
             client_receiver,
             Arc::clone(&semaphore),
-            token.clone(),
             Arc::clone(&statistics),
-            Arc::clone(&config),
         ));
     }
 
@@ -156,9 +132,11 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
     // backup, in case we forgot a dropguard somewhere
     token.cancel();
 
+    tasks.close();
+
     // wait for the task that holds the server to exit gracefully
     // it listens to shutdown_send
-    if timeout(Duration::from_millis(10000), tasks.shutdown())
+    if timeout(Duration::from_millis(10000), tasks.wait())
         .await
         .is_err()
     {
@@ -172,4 +150,58 @@ async fn start_tasks() -> Result<(), color_eyre::Report> {
     event!(Level::INFO, "Goodbye");
 
     Ok(())
+}
+
+fn build_default_filter() -> EnvFilter {
+    EnvFilter::builder()
+        .parse(format!(
+            "DEBUG,{}=TRACE,tower_http::trace=TRACE",
+            env!("CARGO_CRATE_NAME")
+        ))
+        .expect("Default filter should always work")
+}
+
+fn init_tracing() -> Result<(), eyre::Report> {
+    let (filter, filter_parsing_error) = match env::var(EnvFilter::DEFAULT_ENV) {
+        Ok(user_directive) => match EnvFilter::builder().parse(user_directive) {
+            Ok(filter) => (filter, None),
+            Err(error) => (build_default_filter(), Some(eyre::Report::new(error))),
+        },
+        Err(VarError::NotPresent) => (build_default_filter(), None),
+        Err(error @ VarError::NotUnicode(_)) => {
+            (build_default_filter(), Some(eyre::Report::new(error)))
+        },
+    };
+
+    let registry = tracing_subscriber::registry();
+
+    #[cfg(feature = "tokio-console")]
+    let registry = registry.with(console_subscriber::ConsoleLayer::builder().spawn());
+
+    registry
+        .with(tracing_subscriber::fmt::layer().with_filter(filter))
+        .with(tracing_error::ErrorLayer::default())
+        .try_init()?;
+
+    filter_parsing_error.map_or(Ok(()), Err)
+}
+
+fn main() -> Result<(), eyre::Report> {
+    // set up .env, if it fails, user didn't provide any
+    let _r = dotenv();
+
+    HookBuilder::default()
+        .capture_span_trace_by_default(true)
+        .display_env_section(false)
+        .install()?;
+
+    init_tracing()?;
+
+    // initialize the runtime
+    let rt = tokio::runtime::Runtime::new().unwrap();
+
+    // start service
+    let result: Result<(), eyre::Report> = rt.block_on(start_tasks());
+
+    result
 }
