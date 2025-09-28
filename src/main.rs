@@ -39,6 +39,22 @@ use crate::statistics::Statistics;
 const SIZE_IN_BYTES: usize = 1;
 
 async fn start_tasks() -> Result<(), eyre::Report> {
+    let name = env!("CARGO_PKG_NAME");
+    let version = env!("CARGO_PKG_VERSION");
+
+    event!(
+        Level::INFO,
+        "{} v{} - built for {}-{}",
+        name,
+        version,
+        std::env::var("TARGETARCH")
+            .as_deref()
+            .unwrap_or("unknown-arch"),
+        std::env::var("TARGETVARIANT")
+            .as_deref()
+            .unwrap_or("base variant")
+    );
+
     let statistics = Arc::new(RwLock::new(Statistics::new()));
 
     let config = Arc::new(parse_cli().inspect_err(|error| {
