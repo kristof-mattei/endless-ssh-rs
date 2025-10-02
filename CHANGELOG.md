@@ -1,4 +1,37 @@
 <!-- header goes here -->
+## [1.4.0](https://github.com/kristof-mattei/endless-ssh-rs/compare/v1.3.0..v1.4.0) - 2025-10-02
+
+### 🚀 Features
+
+- *(ci)* Multi level - ([eb36e7a](https://github.com/kristof-mattei/endless-ssh-rs/commit/eb36e7acf6ab747376cddd1d67e917262d6627dd))
+- Use target cpu for optimal builds - ([0cf1732](https://github.com/kristof-mattei/endless-ssh-rs/commit/0cf17329e505ee5fd266a1777147321d6618a3ec))
+- Made code more async - ([8a188e5](https://github.com/kristof-mattei/endless-ssh-rs/commit/8a188e5a98e9128e5170ab89f3eb454c3ea93878))
+
+### 🐛 Bug Fixes
+
+- *(deps)* Update rust crate libc to 0.2.176 - ([95a1f28](https://github.com/kristof-mattei/endless-ssh-rs/commit/95a1f282a32c15f2ebf25d9d445824179a7b5490))
+- Breaking doesn't make us go from 0->1 by default - ([b6c3182](https://github.com/kristof-mattei/endless-ssh-rs/commit/b6c3182ca96730a0d6adb3cea886d4dabc39b8d4))
+- Consolidation - ([06fb1c4](https://github.com/kristof-mattei/endless-ssh-rs/commit/06fb1c49929299ef81b7ff487e42d9ebd665a8e8))
+- Cleanup script - ([9b6dc8b](https://github.com/kristof-mattei/endless-ssh-rs/commit/9b6dc8bf460824cb8510719e191a5d5cb03b9f93))
+- Removed erroneous space, added name - ([fbed64f](https://github.com/kristof-mattei/endless-ssh-rs/commit/fbed64f4e620ab45862d7ed38b1b8cc5477662eb))
+- Clean up build-cache as well, and run every day - ([1d6a0a4](https://github.com/kristof-mattei/endless-ssh-rs/commit/1d6a0a4181be25b94c08af55da3d69f4c4846e69))
+- Also delete from build cache if expired (right now 30 days) - ([70b2624](https://github.com/kristof-mattei/endless-ssh-rs/commit/70b2624ed0eae2e920c0a0733faa8b4531c85557))
+
+### ⚙️ Miscellaneous Tasks
+
+- *(ci)* Add step that builds cargo-edit and cargo-get before the docker build. Docker build will then pick up cached version - ([a0c20d6](https://github.com/kristof-mattei/endless-ssh-rs/commit/a0c20d6543ef13d301721a66f75250cfeacc491a))
+- *(ci)* Add comment ensuring the non-standard action gets updated - ([af60f14](https://github.com/kristof-mattei/endless-ssh-rs/commit/af60f143907c0fc3a3e1ddcc37ccc02784e0394e))
+- *(ci)* Split builds again for speed - ([a33e1ab](https://github.com/kristof-mattei/endless-ssh-rs/commit/a33e1ab61073a555dd707ca7cfc0d1efa275ef6f))
+- *(ci)* Reduce platforms for qemu - ([e67fe57](https://github.com/kristof-mattei/endless-ssh-rs/commit/e67fe57673bcdb67648141144b6fb077d3df3e0e))
+- *(ci)* Use github-scripts@v8 - ([7495be9](https://github.com/kristof-mattei/endless-ssh-rs/commit/7495be94fc8a75dfcfef52a5deb5dd76f096825a))
+- *(ci)* Add machete - ([08bd0ef](https://github.com/kristof-mattei/endless-ssh-rs/commit/08bd0efd204b4b7ba7994ce4f9bfb985e0692cc0))
+- *(ci)* Enforce machete - ([38c2d3b](https://github.com/kristof-mattei/endless-ssh-rs/commit/38c2d3b8949c898688c4edeca898da735d6f90cd))
+- *(ci)* Rename format to machete - ([d8e6d9f](https://github.com/kristof-mattei/endless-ssh-rs/commit/d8e6d9f0ef133cee5f38e5c6641e79a26d99cfaf))
+- *(fmt)* Fmt - ([f7b0a11](https://github.com/kristof-mattei/endless-ssh-rs/commit/f7b0a1189c2e2b834199e2fc876b95aa63c8a246))
+- *(release)* Release v1.4.0 - ([](https://github.com/kristof-mattei/endless-ssh-rs/commit/))
+- Use slim-trixie instead of trixie - ([ecd2b0e](https://github.com/kristof-mattei/endless-ssh-rs/commit/ecd2b0e978c392b1ed12726877de4e78f19980e7))
+- Cleanup - ([fb181c3](https://github.com/kristof-mattei/endless-ssh-rs/commit/fb181c3e899c70d21a4d0081ebf2ddf44192012e))
+- Don't show progress - ([e08f1a3](https://github.com/kristof-mattei/endless-ssh-rs/commit/e08f1a3f42403d0c564f2672cffea0c22709897a))
 ## [1.3.0](https://github.com/kristof-mattei/endless-ssh-rs/compare/v1.2.0..v1.3.0) - 2025-09-21
 
 ### 🚀 Features
@@ -210,7 +243,7 @@
 ### ⚙️ Miscellaneous Tasks
 
 - *(release)* Release v1.5.0 - ([5504d10](https://github.com/kristof-mattei/endless-ssh-rs/commit/5504d10df91b765fac320a1ae903bc761017728c))
-- *(release)* Release v1.3.0 - ([](https://github.com/kristof-mattei/endless-ssh-rs/commit/))
+- *(release)* Release v1.3.0 - ([ec3a2f7](https://github.com/kristof-mattei/endless-ssh-rs/commit/ec3a2f700d9efc19f86d0f0547fd6c81d344e52f))
 - *(version)* V1.2.0 - ([1dbbec6](https://github.com/kristof-mattei/endless-ssh-rs/commit/1dbbec608864c5cb559a90d8904996011daef52c))
 - *(version)* V1.3.0 - ([bee1b83](https://github.com/kristof-mattei/endless-ssh-rs/commit/bee1b83e6cfe1afd6286073fc1bb38787c0ba48e))
 - *(version)* V1.3.1 - ([096c422](https://github.com/kristof-mattei/endless-ssh-rs/commit/096c4229799cecace867a1de699a7f65eefe59bb))
