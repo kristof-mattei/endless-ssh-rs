@@ -1,4 +1,4 @@
-use std::num::{NonZeroU16, NonZeroU32, NonZeroU64, NonZeroUsize};
+use std::num::{NonZeroU16, NonZeroU32, NonZeroUsize};
 use std::time::Duration;
 
 use tracing::{Level, event};
@@ -56,7 +56,7 @@ impl Config {
     }
 
     pub fn set_delay(&mut self, delay: NonZeroU32) {
-        self.delay = Duration::from_millis(NonZeroU64::from(delay).get());
+        self.delay = Duration::from_millis(delay.get().into());
     }
 
     pub fn set_max_clients(&mut self, max_clients: NonZeroUsize) {

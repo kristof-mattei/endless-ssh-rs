@@ -4,8 +4,8 @@ use std::sync::Arc;
 use color_eyre::eyre;
 use time::OffsetDateTime;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::mpsc::Sender;
-use tokio::sync::{RwLock, Semaphore, TryAcquireError};
+use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::{Semaphore, TryAcquireError};
 use tokio_util::sync::CancellationToken;
 use tracing::{Level, event};
 
@@ -13,21 +13,21 @@ use crate::SIZE_IN_BYTES;
 use crate::client::Client;
 use crate::config::{BindFamily, Config};
 use crate::ffi_wrapper::set_receive_buffer_size;
-use crate::statistics::Statistics;
+use crate::statistics::StatisticsMessage;
 
 struct Listener<'c> {
     config: &'c Config,
     listener: TcpListener,
 }
 
-pub async fn listen_forever(
+pub async fn listen_for_new_connections(
     config: Arc<Config>,
-    token: CancellationToken,
-    client_sender: tokio::sync::mpsc::Sender<Client<TcpStream>>,
+    cancellation_token: CancellationToken,
+    client_sender: tokio::sync::mpsc::UnboundedSender<Client<TcpStream>>,
     semaphore: Arc<Semaphore>,
-    statistics: Arc<RwLock<Statistics>>,
+    statistics_sender: UnboundedSender<StatisticsMessage>,
 ) {
-    let _guard = token.clone().drop_guard();
+    let _guard = cancellation_token.clone().drop_guard();
 
     // listen forever, accept new clients
     let listener = match Listener::bind(&config).await {
@@ -38,15 +38,15 @@ pub async fn listen_forever(
         },
     };
 
-    event!(Level::INFO, message = "Bound and listening!", listener=?listener.listener);
+    event!(Level::INFO, listener = ?listener.listener, "Bound and listening!");
 
     loop {
         tokio::select! {
             biased;
-            () = token.cancelled() => {
+            () = cancellation_token.cancelled() => {
                 break;
             },
-            result = listener.accept(&client_sender, &semaphore, &statistics) => {
+            result = listener.accept(&client_sender, Arc::clone(&semaphore), &statistics_sender) => {
                 if let Err(error) = result {
                     event!(Level::ERROR, ?error);
 
@@ -82,15 +82,16 @@ impl<'c> Listener<'c> {
 
     pub async fn accept(
         &self,
-        client_sender: &Sender<Client<TcpStream>>,
-        semaphore: &Semaphore,
-        statistics: &RwLock<Statistics>,
+        client_sender: &UnboundedSender<Client<TcpStream>>,
+        semaphore: Arc<Semaphore>,
+        statistics_sender: &UnboundedSender<StatisticsMessage>,
     ) -> Result<(), eyre::Report> {
         let accept = self.listener.accept().await;
 
         {
-            let mut guard = statistics.write().await;
-            guard.connects += 1;
+            statistics_sender
+                .send(StatisticsMessage::NewClient)
+                .expect("Channel should always exist");
         }
 
         match accept {
@@ -106,18 +107,17 @@ impl<'c> Listener<'c> {
                 } else {
                     // we do try_acquire because either we can add the client or we cannot
                     // no in-between, no sense in waiting
-                    match semaphore.try_acquire() {
+                    match Arc::clone(&semaphore).try_acquire_owned() {
                         Ok(permit) => {
                             let client = Client::new(
                                 socket,
                                 addr,
                                 OffsetDateTime::now_utc() + self.config.delay,
+                                permit,
                             );
 
                             // we have a permit, we can send it on the queue
-                            client_sender.send(client).await?;
-
-                            permit.forget();
+                            client_sender.send(client)?;
 
                             let current_clients =
                                 self.config.max_clients.get() - semaphore.available_permits();

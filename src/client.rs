@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
 use time::{Duration, OffsetDateTime};
+use tokio::sync::OwnedSemaphorePermit;
 use tracing::{Level, event};
 
 pub struct Client<S> {
@@ -9,6 +10,7 @@ pub struct Client<S> {
     pub bytes_sent: usize,
     pub addr: SocketAddr,
     pub tcp_stream: S,
+    permit: OwnedSemaphorePermit,
 }
 
 impl<S> std::cmp::Eq for Client<S> {}
@@ -45,13 +47,19 @@ impl<S> std::fmt::Debug for Client<S> {
 }
 
 impl<S> Client<S> {
-    pub fn new(stream: S, addr: SocketAddr, start_sending_at: OffsetDateTime) -> Self {
+    pub fn new(
+        stream: S,
+        addr: SocketAddr,
+        start_sending_at: OffsetDateTime,
+        permit: OwnedSemaphorePermit,
+    ) -> Self {
         Self {
             time_spent: Duration::ZERO,
             send_next: start_sending_at,
             addr,
             bytes_sent: 0,
             tcp_stream: stream,
+            permit,
         }
     }
 }
@@ -68,5 +76,10 @@ impl<S> Drop for Client<S> {
         );
 
         // no need to shut down the stream, it happens when it is dropped
+
+        // Technically this client's permit isn't available until AFTER this function has ended
+        let available_slots = self.permit.semaphore().available_permits() + 1;
+
+        event!(Level::INFO, available_slots);
     }
 }

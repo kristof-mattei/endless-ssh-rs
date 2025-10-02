@@ -15,13 +15,12 @@ mod utils;
 
 use std::env::{self, VarError};
 use std::sync::Arc;
-use std::time::Duration;
 
 use color_eyre::config::HookBuilder;
 use color_eyre::eyre;
 use dotenvy::dotenv;
 use tokio::net::TcpStream;
-use tokio::sync::{RwLock, Semaphore};
+use tokio::sync::Semaphore;
 use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
@@ -32,31 +31,16 @@ use tracing_subscriber::{EnvFilter, Layer as _};
 
 use crate::cli::parse_cli;
 use crate::client::Client;
-use crate::client_queue::process_clients_forever;
-use crate::listener::listen_forever;
-use crate::statistics::Statistics;
+use crate::client_queue::process_clients;
+use crate::config::Config;
+use crate::listener::listen_for_new_connections;
+use crate::statistics::{Statistics, statistics_sigusr1_handler};
+
+type StdDuration = std::time::Duration;
 
 const SIZE_IN_BYTES: usize = 1;
 
-async fn start_tasks() -> Result<(), eyre::Report> {
-    let name = env!("CARGO_PKG_NAME");
-    let version = env!("CARGO_PKG_VERSION");
-
-    event!(
-        Level::INFO,
-        "{} v{} - built for {}-{}",
-        name,
-        version,
-        std::env::var("TARGETARCH")
-            .as_deref()
-            .unwrap_or("unknown-arch"),
-        std::env::var("TARGETVARIANT")
-            .as_deref()
-            .unwrap_or("base variant")
-    );
-
-    let statistics = Arc::new(RwLock::new(Statistics::new()));
-
+fn get_config() -> Result<Arc<Config>, eyre::Report> {
     let config = Arc::new(parse_cli().inspect_err(|error| {
         // this prints the error in color and exits
         // can't do anything else until
@@ -69,54 +53,77 @@ async fn start_tasks() -> Result<(), eyre::Report> {
 
     config.log();
 
+    Ok(config)
+}
+
+fn show_intro() {
+    const NAME: &str = env!("CARGO_PKG_NAME");
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+    event!(
+        Level::INFO,
+        "{} v{} - built for {}-{}",
+        NAME,
+        VERSION,
+        std::env::var("TARGETARCH")
+            .as_deref()
+            .unwrap_or("unknown-arch"),
+        std::env::var("TARGETVARIANT")
+            .as_deref()
+            .unwrap_or("base variant")
+    );
+}
+
+async fn start_tasks(config: Arc<Config>) -> Result<(), eyre::Report> {
+    // this channel is used to communicate between
+    // tasks and this function, in the case that a task fails, they'll send a message on the shutdown channel
+    // after which we'll gracefully terminate other services
+    let cancellation_token = CancellationToken::new();
+    let client_cancellation_token = CancellationToken::new();
+    let statistics_cancellation_token = CancellationToken::new();
+
+    let (statistics_sender, statistics_join_handle) =
+        Statistics::new(statistics_cancellation_token.clone());
+
     // clients channel
     let (client_sender, client_receiver) =
-        tokio::sync::mpsc::channel::<Client<TcpStream>>(config.max_clients.into());
+        tokio::sync::mpsc::unbounded_channel::<Client<TcpStream>>();
 
     // available slots semaphore
     let semaphore = Arc::new(Semaphore::new(config.max_clients.into()));
 
-    // this channel is used to communicate between
-    // tasks and this function, in the case that a task fails, they'll send a message on the shutdown channel
-    // after which we'll gracefully terminate other services
-    let token = CancellationToken::new();
-
     let tasks = TaskTracker::new();
 
     {
-        tasks.spawn(listen_forever(
+        tasks.spawn(listen_for_new_connections(
             Arc::clone(&config),
-            token.clone(),
+            cancellation_token.clone(),
             client_sender.clone(),
             Arc::clone(&semaphore),
-            Arc::clone(&statistics),
+            statistics_sender.clone(),
         ));
     }
 
-    {
+    let process_clients_handler = {
         // listen to new connection channel, convert into client, push to client channel
-        tasks.spawn(process_clients_forever(
-            Arc::clone(&config),
-            token.clone(),
+        tasks.spawn(process_clients(
+            client_cancellation_token.clone(),
+            config.delay,
+            config.max_line_length,
             client_sender.clone(),
             client_receiver,
-            Arc::clone(&semaphore),
-            Arc::clone(&statistics),
+            statistics_sender.clone(),
+        ))
+    };
+
+    {
+        tasks.spawn(statistics_sigusr1_handler(
+            cancellation_token.clone(),
+            statistics_sender.clone(),
         ));
     }
 
-    {
-        let token = token.clone();
-        let statistics = Arc::clone(&statistics);
-
-        tasks.spawn(async move {
-            let _guard = token.clone().drop_guard();
-
-            while let Ok(()) = signal_handlers::wait_for_sigusr1().await {
-                statistics.read().await.log_totals::<(), _>(&[]);
-            }
-        });
-    }
+    tasks.close();
 
     // now we wait forever for either
     // * SIGTERM
@@ -140,27 +147,39 @@ async fn start_tasks() -> Result<(), eyre::Report> {
                 event!(Level::WARN, "CTRL+C detected, stopping all tasks");
             }
         },
-        () = token.cancelled() => {
+        () = cancellation_token.cancelled() => {
             event!(Level::WARN, "Underlying task stopped, stopping all others tasks");
         },
     }
 
     // backup, in case we forgot a dropguard somewhere
-    token.cancel();
+    cancellation_token.cancel();
 
-    tasks.close();
+    client_cancellation_token.cancel();
 
-    // wait for the task that holds the server to exit gracefully
-    // it listens to shutdown_send
-    if timeout(Duration::from_millis(10000), tasks.wait())
+    if timeout(StdDuration::from_millis(10000), process_clients_handler)
+        .await
+        .is_err()
+    {
+        event!(
+            Level::ERROR,
+            "Client processor didn't stop within allotted time!"
+        );
+    }
+
+    {
+        // cancel the statistics handler now that the client processor is gone
+        statistics_cancellation_token.cancel();
+        // wait for abort and do a final abort
+        statistics_join_handle.await?.log_totals();
+    }
+
+    // wait for the other tasks to shut down gracefully
+    if timeout(StdDuration::from_millis(10000), tasks.wait())
         .await
         .is_err()
     {
         event!(Level::ERROR, "Tasks didn't stop within allotted time!");
-    }
-
-    {
-        (statistics.read().await).log_totals::<(), _>(&[]);
     }
 
     event!(Level::INFO, "Goodbye");
@@ -213,11 +232,15 @@ fn main() -> Result<(), eyre::Report> {
 
     init_tracing()?;
 
+    show_intro();
+
+    let config = get_config()?;
+
     // initialize the runtime
     let rt = tokio::runtime::Runtime::new().unwrap();
 
     // start service
-    let result: Result<(), eyre::Report> = rt.block_on(start_tasks());
+    let result: Result<(), eyre::Report> = rt.block_on(start_tasks(config));
 
     result
 }
