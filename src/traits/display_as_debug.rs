@@ -1,13 +1,13 @@
 #[cfg_attr(not(test), expect(unused, reason = "Not used outside of testing"))]
 pub trait PrettyPrinterWrapper {
-    fn display_as_debug(&self) -> DisplayAsDebugWrapper<Self>
+    fn display_as_debug(&'_ self) -> DisplayAsDebugWrapper<'_, Self>
     where
         Self: std::fmt::Display,
     {
         DisplayAsDebugWrapper::<Self> { inner: self }
     }
 
-    fn pretty_print<F>(&self, format: F) -> PrettyPrinter<Self, F>
+    fn pretty_print<F>(&'_ self, format: F) -> PrettyPrinter<'_, Self, F>
     where
         F: Fn(&Self, &mut std::fmt::Formatter<'_>) -> std::fmt::Result,
     {

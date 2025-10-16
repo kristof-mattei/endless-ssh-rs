@@ -3,23 +3,29 @@
 # sane defaults
 c_compiler="gcc"
 cpp_compiler="g++"
-
-rust_flags="-Clink-self-contained=yes -Clinker=rust-lld"
+target_cpu=""
 
 case $TARGET in
-    x86_64-unknown-linux-*)
-        c_compiler="x86_64-linux-gnu-gcc-12"
-        cpp_compiler="x86_64-linux-gnu-g++-12"
+    x86_64-unknown-linux-musl)
+        c_compiler="x86_64-linux-musl-gcc"
+        cpp_compiler="x86_64-linux-musl-g++"
+
+        if ! [[ -z "${TARGETVARIANT}" ]]; then
+            target_cpu="-Ctarget-cpu=x86-64-${TARGETVARIANT}"
+        fi
+
         ;;
-    aarch64-unknown-linux-*)
-        c_compiler="aarch64-linux-gnu-gcc"
-        cpp_compiler="aarch64-linux-gnu-g++"
+    aarch64-unknown-linux-musl)
+        c_compiler="aarch64-linux-musl-gcc"
+        cpp_compiler="aarch64-linux-musl-g++"
         ;;
     *)
         echo "INVALID CONFIGURATION"
         exit 1
         ;;
 esac
+
+rust_flags="-Clink-self-contained=yes -Clinker=rust-lld ${target_cpu}"
 
 # replace - with _ in the Rust target
 target_lower=${TARGET//-/_}
