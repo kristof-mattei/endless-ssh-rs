@@ -36,6 +36,9 @@ use crate::config::Config;
 use crate::listener::listen_for_new_connections;
 use crate::statistics::{Statistics, statistics_sigusr1_handler};
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 type StdDuration = std::time::Duration;
 
 const SIZE_IN_BYTES: usize = 1;
