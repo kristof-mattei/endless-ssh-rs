@@ -66,12 +66,14 @@ where
 {
     let now = OffsetDateTime::now_utc();
 
-    if client.send_next > now {
-        let until_ready = (client.send_next - now)
+    let client_send_next = client.send_next();
+
+    if client_send_next > now {
+        let until_ready = (client_send_next - now)
             .try_into()
             .expect("`send_next` is larger than `now`, so duration should be positive");
 
-        event!(Level::TRACE, addr = ?client.addr, ?until_ready, "Scheduled client");
+        event!(Level::TRACE, addr = ?client.addr(), ?until_ready, "Scheduled client");
 
         tokio::select! {
             biased;
@@ -87,11 +89,13 @@ where
         .send(StatisticsMessage::ProcessedClient)
         .expect("Channel should always exist");
 
-    event!(Level::DEBUG, addr = ?client.addr, "Processing client");
+    event!(Level::DEBUG, addr = ?client.addr(), "Processing client");
 
-    if let Ok(bytes_sent) = sender::sendline(&mut client.tcp_stream, max_line_length.into()).await {
-        client.bytes_sent += bytes_sent;
-        client.time_spent += delay;
+    if let Ok(bytes_sent) =
+        sender::sendline(&mut client.tcp_stream_mut(), max_line_length.into()).await
+    {
+        *client.bytes_sent_mut() += bytes_sent;
+        *client.time_spent_mut() += delay;
 
         {
             statistics_sender
@@ -103,7 +107,7 @@ where
         }
 
         // and delay again
-        client.send_next = OffsetDateTime::now_utc() + delay;
+        *client.send_next_mut() = OffsetDateTime::now_utc() + delay;
 
         // Done processing, return
         Some(client)

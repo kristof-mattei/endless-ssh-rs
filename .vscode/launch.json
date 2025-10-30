@@ -5,22 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug executable 'endless-ssh-rs'",
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'endless-ssh-rs'",
             "cargo": {
-                "args": [
-                    "build",
-                    "--bin=endless-ssh-rs",
-                    "--package=endless-ssh-rs"
-                ],
-                "filter": {
-                    "name": "endless-ssh-rs",
-                    "kind": "bin"
-                }
+                "args": ["run", "--bin=endless-ssh-rs"]
             },
             "args": [],
-            "cwd": "${workspaceFolder}",
             "env": {
                 "RUST_BACKTRACE": "1",
                 "RUST_LOG": "DEBUG,endless_ssh_rs=TRACE"
@@ -29,22 +20,13 @@
             "terminal": "integrated"
         },
         {
+            "name": "Debug executable 'endless-ssh-rs' wrong-params",
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'endless-ssh-rs' wrong-params",
             "cargo": {
-                "args": [
-                    "build",
-                    "--bin=endless-ssh-rs",
-                    "--package=endless-ssh-rs"
-                ],
-                "filter": {
-                    "name": "endless-ssh-rs",
-                    "kind": "bin"
-                }
+                "args": ["run", "--bin=endless-ssh-rs"]
             },
             "args": ["wrong-params"],
-            "cwd": "${workspaceFolder}",
             "env": {
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "DEBUG,endless_ssh_rs=TRACE"
@@ -53,22 +35,13 @@
             "terminal": "integrated"
         },
         {
+            "name": "Debug executable 'endless-ssh-rs' help",
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'endless-ssh-rs' help",
             "cargo": {
-                "args": [
-                    "build",
-                    "--bin=endless-ssh-rs",
-                    "--package=endless-ssh-rs"
-                ],
-                "filter": {
-                    "name": "endless-ssh-rs",
-                    "kind": "bin"
-                }
+                "args": ["run", "--bin=endless-ssh-rs"]
             },
             "args": ["-h"],
-            "cwd": "${workspaceFolder}",
             "env": {
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "DEBUG,endless_ssh_rs=TRACE"
@@ -77,23 +50,12 @@
             "terminal": "integrated"
         },
         {
+            "name": "Debug unit tests in executable 'endless-ssh-rs'",
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'endless-ssh-rs'",
             "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--bin=endless-ssh-rs",
-                    "--package=endless-ssh-rs"
-                ],
-                "filter": {
-                    "name": "endless-ssh-rs",
-                    "kind": "bin"
-                }
+                "args": ["test", "--bin=endless-ssh-rs"]
             },
-            "args": [],
-            "cwd": "${workspaceFolder}",
             "env": {
                 "RUST_BACKTRACE": "1",
                 "RUST_LOG": "DEBUG,endless_ssh_rs=TRACE"
@@ -102,23 +64,12 @@
             "terminal": "integrated"
         },
         {
+            "name": "Debug integration test 'integration_tests'",
             "type": "lldb",
             "request": "launch",
-            "name": "Debug integration test 'integration_tests'",
             "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--test=integration_tests",
-                    "--package=endless-ssh-rs"
-                ],
-                "filter": {
-                    "name": "integration_tests",
-                    "kind": "test"
-                }
+                "args": ["test", "--test=integration_tests"]
             },
-            "args": [],
-            "cwd": "${workspaceFolder}",
             "env": {
                 "RUST_BACKTRACE": "1",
                 "RUST_LOG": "DEBUG,endless_ssh_rs=TRACE"
