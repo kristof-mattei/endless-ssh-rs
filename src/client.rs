@@ -5,11 +5,11 @@ use tokio::sync::OwnedSemaphorePermit;
 use tracing::{Level, event};
 
 pub struct Client<S> {
-    pub time_spent: Duration,
-    pub send_next: OffsetDateTime,
-    pub bytes_sent: usize,
-    pub addr: SocketAddr,
-    pub tcp_stream: S,
+    time_spent: Duration,
+    send_next: OffsetDateTime,
+    bytes_sent: usize,
+    addr: SocketAddr,
+    tcp_stream: S,
     permit: OwnedSemaphorePermit,
 }
 
@@ -61,6 +61,40 @@ impl<S> Client<S> {
             tcp_stream: stream,
             permit,
         }
+    }
+
+    #[expect(unused, reason = "Consistency with other props")]
+    pub fn time_spent(&self) -> Duration {
+        self.time_spent
+    }
+
+    pub fn time_spent_mut(&mut self) -> &mut Duration {
+        &mut self.time_spent
+    }
+
+    pub fn send_next(&self) -> OffsetDateTime {
+        self.send_next
+    }
+
+    pub fn send_next_mut(&mut self) -> &mut OffsetDateTime {
+        &mut self.send_next
+    }
+
+    #[expect(unused, reason = "Consistency with other props")]
+    pub fn bytes_sent(&self) -> usize {
+        self.bytes_sent
+    }
+
+    pub fn bytes_sent_mut(&mut self) -> &mut usize {
+        &mut self.bytes_sent
+    }
+
+    pub fn addr(&self) -> SocketAddr {
+        self.addr
+    }
+
+    pub fn tcp_stream_mut(&mut self) -> &mut S {
+        &mut self.tcp_stream
     }
 }
 
