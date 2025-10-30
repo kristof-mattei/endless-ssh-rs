@@ -10,6 +10,7 @@ categories = ["ssh", "utility"]
 keywords = ["ssh", "tarpit", "script-kiddies"]
 repository = "https://github.com/kristof-mattei/endless-ssh-rs"
 include = ["src/**", "/LICENSE", "/LICENSE-*"]
+build = "src/build.rs"
 
 [features]
 default = []

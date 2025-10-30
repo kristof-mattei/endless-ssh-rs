@@ -1,3 +1,4 @@
+mod build_env;
 mod cli;
 mod client;
 mod client_queue;
@@ -29,6 +30,7 @@ use tracing_subscriber::layer::SubscriberExt as _;
 use tracing_subscriber::util::SubscriberInitExt as _;
 use tracing_subscriber::{EnvFilter, Layer as _};
 
+use crate::build_env::get_build_env;
 use crate::cli::parse_cli;
 use crate::client::Client;
 use crate::client_queue::process_clients;
@@ -59,25 +61,25 @@ fn get_config() -> Result<Arc<Config>, eyre::Report> {
     Ok(config)
 }
 
-fn show_intro() {
+fn print_header() {
     const NAME: &str = env!("CARGO_PKG_NAME");
     const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+    let build_env = get_build_env();
+
     event!(
         Level::INFO,
-        "{} v{} - built for {}-{}",
+        "{} v{} - built for {} ({})",
         NAME,
         VERSION,
-        std::env::var("TARGETARCH")
-            .as_deref()
-            .unwrap_or("unknown-arch"),
-        std::env::var("TARGETVARIANT")
-            .as_deref()
-            .unwrap_or("base variant")
+        build_env.get_target(),
+        build_env.get_target_cpu().unwrap_or("base cpu variant"),
     );
 }
 
 async fn start_tasks(config: Arc<Config>) -> Result<(), eyre::Report> {
+    print_header();
+
     // this channel is used to communicate between
     // tasks and this function, in the case that a task fails, they'll send a message on the shutdown channel
     // after which we'll gracefully terminate other services
@@ -234,8 +236,6 @@ fn main() -> Result<(), eyre::Report> {
         .install()?;
 
     init_tracing()?;
-
-    show_intro();
 
     let config = get_config()?;
 
