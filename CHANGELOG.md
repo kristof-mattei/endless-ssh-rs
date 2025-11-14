@@ -1,4 +1,13 @@
 <!-- header goes here -->
+## [1.5.1](https://github.com/kristof-mattei/endless-ssh-rs/compare/v1.5.0..v1.5.1) - 2025-11-14
+
+### 🐛 Bug Fixes
+
+- No attestation for building initial images - ([46b2cf0](https://github.com/kristof-mattei/endless-ssh-rs/commit/46b2cf0212f531e5cf80a76cdf99f09bffdc81c1))
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* Release v1.5.1 - ([](https://github.com/kristof-mattei/endless-ssh-rs/commit/))
 ## [1.5.0](https://github.com/kristof-mattei/endless-ssh-rs/compare/v1.4.0..v1.5.0) - 2025-11-14
 
 ### 🚀 Features
@@ -34,7 +43,7 @@
 
 - *(ci)* Enforce nightly fmt - ([3ec2ad1](https://github.com/kristof-mattei/endless-ssh-rs/commit/3ec2ad14ee4b4dd97b161ce62d37871f42f78dd7))
 - *(ci)* Kill enforcement of nightly fmt - ([ba7dfda](https://github.com/kristof-mattei/endless-ssh-rs/commit/ba7dfdaedabe7840657c288075ee4796fd31faf4))
-- *(release)* Release v1.5.0 - ([](https://github.com/kristof-mattei/endless-ssh-rs/commit/))
+- *(release)* Release v1.5.0 - ([ed85543](https://github.com/kristof-mattei/endless-ssh-rs/commit/ed855439e9982b5f63cba35e82293bcb370d2cad))
 - Prebuild -> pre-build - ([9cd7f51](https://github.com/kristof-mattei/endless-ssh-rs/commit/9cd7f51513126a751427be4f4e5cfa2fe9a2a875))
 - Fmt - ([54866c7](https://github.com/kristof-mattei/endless-ssh-rs/commit/54866c7e83be6676c455beba5ff83f92985c25ac))
 - Test script for local coverage display - ([37ee7be](https://github.com/kristof-mattei/endless-ssh-rs/commit/37ee7bed77437a8f2ce2d3a7f1d72b9cbbd77bbf))
