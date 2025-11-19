@@ -1,4 +1,16 @@
 <!-- header goes here -->
+## [1.5.2](https://github.com/kristof-mattei/endless-ssh-rs/compare/v1.5.1..v1.5.2) - 2025-11-19
+
+### 🐛 Bug Fixes
+
+- *(deps)* Update rust crate clap to 4.5.52 - ([c843503](https://github.com/kristof-mattei/endless-ssh-rs/commit/c843503e2d4bb352247a03a1bb61da8c5f094252))
+- No attestation for building initial images - ([f174a10](https://github.com/kristof-mattei/endless-ssh-rs/commit/f174a10ad48b6d4ea02b685854966ffc18d08f3f))
+- Push image with imagetools create - ([9e58649](https://github.com/kristof-mattei/endless-ssh-rs/commit/9e586493dfd7fac05e70787914d50cdc43fd95a2))
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* Release 0.0.1 - ([a075d2d](https://github.com/kristof-mattei/endless-ssh-rs/commit/a075d2d69cd0202de3d42c8a888ca14b49e0051f))
+- *(release)* Release v1.5.2 - ([](https://github.com/kristof-mattei/endless-ssh-rs/commit/))
 ## [1.5.1](https://github.com/kristof-mattei/endless-ssh-rs/compare/v1.5.0..v1.5.1) - 2025-11-14
 
 ### 🐛 Bug Fixes
@@ -7,7 +19,7 @@
 
 ### ⚙️ Miscellaneous Tasks
 
-- *(release)* Release v1.5.1 - ([](https://github.com/kristof-mattei/endless-ssh-rs/commit/))
+- *(release)* Release v1.5.1 - ([a3e9736](https://github.com/kristof-mattei/endless-ssh-rs/commit/a3e9736e50383aa4288aea640b4410adf38cce96))
 ## [1.5.0](https://github.com/kristof-mattei/endless-ssh-rs/compare/v1.4.0..v1.5.0) - 2025-11-14
 
 ### 🚀 Features
