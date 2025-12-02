@@ -1,7 +1,15 @@
+#![allow(dead_code)]
 use ::rand::distr::uniform::{SampleRange, SampleUniform};
 use mockall::automock;
 use rand::Rng as _;
 use rand::rngs::ThreadRng;
+
+trait GetRandomOld {
+    fn gen_range<T, R>(&mut self, range: R) -> T
+    where
+        T: SampleUniform + 'static,
+        R: SampleRange<T> + 'static;
+}
 
 #[automock]
 trait GetRandom {
