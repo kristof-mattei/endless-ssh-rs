@@ -1,15 +1,23 @@
 use ::rand::distr::uniform::{SampleRange, SampleUniform};
-use mockall::automock;
 use rand::Rng as _;
 use rand::rngs::ThreadRng;
 
-#[automock]
-trait GetRandom {
-    fn gen_range<T, R>(&mut self, range: R) -> T
-    where
-        T: SampleUniform + 'static,
-        R: SampleRange<T> + 'static;
+mod get_random {
+    #![expect(clippy::disallowed_types, reason = "Macro")]
+
+    use ::rand::distr::uniform::{SampleRange, SampleUniform};
+    use mockall::automock;
+
+    #[automock]
+    pub trait GetRandom {
+        fn gen_range<T, R>(&mut self, range: R) -> T
+        where
+            T: SampleUniform + 'static,
+            R: SampleRange<T> + 'static;
+    }
 }
+
+use get_random::GetRandom;
 
 struct GenRange<R> {
     rng: R,
@@ -63,7 +71,7 @@ mod tests {
     use mockall_double::double;
 
     #[double]
-    use crate::line::GetRandom;
+    use crate::line::get_random::GetRandom;
     use crate::line::randline_from;
 
     #[test]
