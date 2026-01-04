@@ -1,11 +1,7 @@
-10
+6
 CLI
 codecov
-io
 mockall
 mockall_double
-PRs
 tarpit
-TODO
-tokio
-untagged
+Tokio
