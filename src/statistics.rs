@@ -13,7 +13,7 @@ pub enum StatisticsMessage {
     LostClient,
     BytesSent(usize),
     TimeSpent(StdDuration),
-    /// Connects += 1
+    // Connects += 1
     NewClient,
     LogTotals,
 }

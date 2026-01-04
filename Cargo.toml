@@ -46,6 +46,9 @@ tracing-subscriber = { version = "0.3.22", features = [
 ] }
 url = { version = "2.5.7", features = ["serde"] }
 
+[package.metadata.spellcheck]
+config = "spellcheck.toml"
+
 [lints.clippy]
 # don't stop from compiling / running
 all = "warn"
