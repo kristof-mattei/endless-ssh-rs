@@ -44,7 +44,7 @@ tracing-subscriber = { version = "0.3.22", features = [
     "time",
     "tracing-log",
 ] }
-url = { version = "2.5.7", features = ["serde"] }
+url = { version = "2.5.8", features = ["serde"] }
 
 [package.metadata.spellcheck]
 config = "spellcheck.toml"
