@@ -99,7 +99,7 @@ impl<S> Client<S> {
 }
 
 impl<S> Drop for Client<S> {
-    /// Destroys self returning time spent annoying this client
+    /// Destroys `self` returning time spent annoying this client.
     fn drop(&mut self) {
         event!(
             Level::INFO,
