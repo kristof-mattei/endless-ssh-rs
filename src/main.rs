@@ -24,7 +24,7 @@ use tokio::sync::Semaphore;
 use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
-use tracing::{Level, event};
+use tracing::{Level, event, instrument};
 use tracing_subscriber::layer::SubscriberExt as _;
 use tracing_subscriber::util::SubscriberInitExt as _;
 use tracing_subscriber::{EnvFilter, Layer as _};
@@ -107,6 +107,10 @@ async fn start_tasks(config: Arc<Config>) -> Result<(), eyre::Report> {
             statistics_sender.clone(),
         ));
     }
+
+    test_call(Arc::clone(&config), "foo", "bar", 5);
+
+    panic!("The end");
 
     let process_clients_handler = {
         // listen to new connection channel, convert into client, push to client channel
@@ -246,3 +250,9 @@ fn main() -> Result<(), eyre::Report> {
 
     result
 }
+
+#[instrument(level = Level::ERROR, skip(config), fields(foo))]
+fn test_call(config: Arc<Config>, foo: &str, bar: &str, i: i32) {
+    event!(Level::INFO, "YEA BABY");
+}
+
