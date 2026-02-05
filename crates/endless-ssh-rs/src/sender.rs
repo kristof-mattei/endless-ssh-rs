@@ -62,6 +62,8 @@ pub async fn sendline<T: tokio::io::AsyncWriteExt + std::marker::Unpin + std::fm
 mod tests {
     use std::io::ErrorKind;
 
+    use pretty_assertions::assert_eq;
+
     use crate::sender::sendline;
 
     #[derive(Debug)]

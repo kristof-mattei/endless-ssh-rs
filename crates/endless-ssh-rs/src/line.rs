@@ -69,6 +69,7 @@ mod tests {
     use std::ops::RangeInclusive;
 
     use mockall_double::double;
+    use pretty_assertions::assert_eq;
 
     #[double]
     use crate::line::get_random::GetRandom;
