@@ -47,7 +47,7 @@ tracing-subscriber = { version = "0.3.22", features = [
 url = { version = "2.5.8", features = ["serde"] }
 
 [dev-dependencies]
-pretty_assertions = "1.4.1"
+pretty_assertions = "=1.4.1"
 
 [lints]
 workspace = true
