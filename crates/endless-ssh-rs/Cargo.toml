@@ -1,0 +1,53 @@
+[package]
+name = "endless-ssh-rs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description.workspace = true
+license.workspace = true
+categories.workspace = true
+keywords.workspace = true
+repository.workspace = true
+include.workspace = true
+build = "src/build.rs"
+
+[features]
+default = []
+tokio-console = ["dep:console-subscriber"]
+
+[dependencies]
+clap = { version = "4.5.57", features = ["cargo", "derive", "string"] }
+color-eyre = "0.6.5"
+console-subscriber = { version = "0.5.0", optional = true }
+dotenvy = "0.15.7"
+libc = "0.2.180"
+mimalloc = { version = "0.1.48", features = ["v3"] }
+mockall = "0.14.0"
+mockall_double = "0.3.1"
+rand = "0.9.2"
+time = { version = "0.3.47", features = ["formatting"] }
+tokio = { version = "1.49.0", features = [
+    "rt-multi-thread",
+    "macros",
+    "time",
+    "signal",
+    "net",
+    "sync",
+    "io-util",
+] }
+tokio-util = { version = "0.7.18", features = ["rt"] }
+tracing = "0.1.44"
+tracing-error = "0.2.1"
+tracing-subscriber = { version = "0.3.22", features = [
+    "env-filter",
+    "time",
+    "tracing-log",
+] }
+url = { version = "2.5.8", features = ["serde"] }
+
+[dev-dependencies]
+pretty_assertions = "1.4.1"
+
+[lints]
+workspace = true

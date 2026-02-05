@@ -67,6 +67,8 @@ where
 mod tests {
     use std::fmt::Formatter;
 
+    use pretty_assertions::assert_eq;
+
     use crate::traits::display_as_debug::PrettyPrinterWrapper as _;
 
     #[test]

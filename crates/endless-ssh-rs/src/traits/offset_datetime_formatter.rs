@@ -8,8 +8,8 @@ pub fn offset_datetime_formatter(
 ) -> std::fmt::Result {
     match offset_datetime.format(&Rfc3339) {
         Ok(formatted) => f.write_str(&formatted),
-        Err(e) => {
-            write!(f, "Couldn't convert time to Rfc3339, error: {:?}", e)
+        Err(error) => {
+            write!(f, "Couldn't convert time to Rfc3339, error: {:?}", error)
         },
     }
 }
