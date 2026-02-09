@@ -21,7 +21,7 @@ clap = { version = "4.5.57", features = ["cargo", "derive", "string"] }
 color-eyre = "0.6.5"
 console-subscriber = { version = "0.5.0", optional = true }
 dotenvy = "0.15.7"
-libc = "0.2.180"
+libc = "0.2.181"
 mimalloc = { version = "0.1.48", features = ["v3"] }
 mockall = "0.14.0"
 mockall_double = "0.3.1"
