@@ -1,5 +1,5 @@
 use ::rand::distr::uniform::{SampleRange, SampleUniform};
-use rand::Rng as _;
+use rand::RngExt as _;
 use rand::rngs::ThreadRng;
 
 mod get_random {
