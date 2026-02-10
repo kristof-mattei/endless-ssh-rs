@@ -77,13 +77,13 @@ WORKDIR /build
 RUN --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git/db,sharing=locked \
     --mount=type=cache,id=cargo-registry-index,target=/usr/local/cargo/registry/index,sharing=locked \
     --mount=type=cache,id=cargo-registry-cache,target=/usr/local/cargo/registry/cache,sharing=locked \
-    cargo fetch
+    /build-scripts/build.sh fetch --locked
 
 RUN --mount=type=cache,id=target-${TARGETPLATFORMDASH},target=${CARGO_TARGET_DIR},sharing=locked \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git/db \
     --mount=type=cache,id=cargo-registry-index,target=/usr/local/cargo/registry/index \
     --mount=type=cache,id=cargo-registry-cache,target=/usr/local/cargo/registry/cache \
-    /build-scripts/build.sh build --release
+    /build-scripts/build.sh build --release --frozen
 
 # Rust full build
 FROM rust-cargo-build AS rust-build
@@ -103,7 +103,7 @@ RUN --mount=type=cache,id=target-${TARGETPLATFORMDASH},target=${CARGO_TARGET_DIR
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git/db \
     --mount=type=cache,id=cargo-registry-index,target=/usr/local/cargo/registry/index \
     --mount=type=cache,id=cargo-registry-cache,target=/usr/local/cargo/registry/cache \
-    /build-scripts/build.sh install --path ./crates/${APPLICATION_NAME}/ --locked --root /output
+    /build-scripts/build.sh install --path ./crates/${APPLICATION_NAME}/ --frozen --root /output
 
 # Container user setup
 FROM --platform=${BUILDPLATFORM} alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659 AS passwd-build
