@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  lint:
+  spellcheck:
     name: Spellcheck
     runs-on: ubuntu-latest
     steps:
