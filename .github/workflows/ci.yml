@@ -576,6 +576,7 @@ jobs:
     runs-on: ubuntu-slim
     needs:
       - changes
+      - calculate-version
       - docker-prepare-variables
       - rust-build
       - docker-build
