@@ -306,6 +306,7 @@ jobs:
     # combination of upstream skip and success: success
     runs-on: ubuntu-slim
     needs:
+      - changes
       - cargo-build
       - cargo-clippy-and-report
       - cargo-fmt
