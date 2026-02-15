@@ -24,11 +24,12 @@ jobs:
       - name: Extract tag from branch name
         shell: bash
         id: release
+        env:
+          BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
-          branch="${{ github.event.pull_request.head.ref }}"
           # release/v0.0.3-rc.1 -> v0.0.3-rc.1
           # release/v0.0.3 -> v0.0.3
-          tag="${branch#release/}"
+          tag="${BRANCH#release/}"
           echo "tag=$tag" >> "${GITHUB_OUTPUT}"
 
           if [[ "$tag" == *-rc.* ]]; then
@@ -46,14 +47,14 @@ jobs:
 
       - name: Create tag
         shell: bash
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
         run: |
           git config --global user.name github-actions[bot]
           git config --global user.email 41898282+github-actions[bot]@users.noreply.github.com
 
-          tag="${{ steps.release.outputs.tag }}"
-
-          git tag "${tag}" --message "chore(release): Release ${tag}"
-          git push origin "${tag}"
+          git tag "${TAG}" --message "chore(release): Release ${TAG}"
+          git push origin "${TAG}"
 
       - name: Install git-cliff to generate changelog
         uses: taiki-e/install-action@288875dd3d64326724fa6d9593062d9f8ba0b131 # v2.67.30
@@ -69,17 +70,17 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.TOKEN_TO_TRIGGER_SUBSEQUENT_WORKFLOWS }}
+          TAG: ${{ steps.release.outputs.tag }}
+          PRERELEASE: ${{ steps.release.outputs.prerelease }}
         run: |
-          tag="${{ steps.release.outputs.tag }}"
-
           prerelease_flag=""
-          if [ "${{ steps.release.outputs.prerelease }}" == "true" ]; then
+          if [ "${PRERELEASE}" == "true" ]; then
             prerelease_flag="--prerelease"
           fi
 
-          gh release create "${tag}" \
+          gh release create "${TAG}" \
             --notes-file release-notes.md \
-            --title "${tag}" \
+            --title "${TAG}" \
             ${prerelease_flag}
 
       - name: Close stale release PRs
