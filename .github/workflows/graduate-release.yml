@@ -1,0 +1,97 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Graduate Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write # to create tags
+  pull-requests: write # to close stale release PRs
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  graduate:
+    name: Graduate Release
+    runs-on: ubuntu-latest
+    if: |
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'release/v')
+    steps:
+      - name: Extract tag from branch name
+        shell: bash
+        id: release
+        run: |
+          branch="${{ github.event.pull_request.head.ref }}"
+          # release/v0.0.3-rc.1 -> v0.0.3-rc.1
+          # release/v0.0.3 -> v0.0.3
+          tag="${branch#release/}"
+          echo "tag=$tag" >> "${GITHUB_OUTPUT}"
+
+          if [[ "$tag" == *-rc.* ]]; then
+            echo "prerelease=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "prerelease=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          show-progress: false
+          token: ${{ secrets.TOKEN_TO_TRIGGER_SUBSEQUENT_WORKFLOWS }}
+
+      - name: Create tag
+        shell: bash
+        run: |
+          git config --global user.name github-actions[bot]
+          git config --global user.email 41898282+github-actions[bot]@users.noreply.github.com
+
+          tag="${{ steps.release.outputs.tag }}"
+
+          git tag "${tag}" --message "chore(release): Release ${tag}"
+          git push origin "${tag}"
+
+      - name: Install git-cliff to generate changelog
+        uses: taiki-e/install-action@288875dd3d64326724fa6d9593062d9f8ba0b131 # v2.67.30
+        with:
+          tool: git-cliff
+
+      - name: Generate release notes
+        shell: bash
+        run: |
+          git-cliff --output release-notes.md --current --github-token ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN_TO_TRIGGER_SUBSEQUENT_WORKFLOWS }}
+        run: |
+          tag="${{ steps.release.outputs.tag }}"
+
+          prerelease_flag=""
+          if [ "${{ steps.release.outputs.prerelease }}" == "true" ]; then
+            prerelease_flag="--prerelease"
+          fi
+
+          gh release create "${tag}" \
+            --notes-file release-notes.md \
+            --title "${tag}" \
+            ${prerelease_flag}
+
+      - name: Close stale release PRs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Close all other open PRs from release/* branches
+          gh pr list \
+            --state open \
+            --json number,headRefName \
+            --jq '.[] | select(.headRefName | startswith("release/v")) | .number' \
+          | while read pr_number; do
+            gh pr close "$pr_number" --delete-branch
+          done
