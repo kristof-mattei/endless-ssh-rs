@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       prerelease:
-        description: "Pre-release type:"
+        description: "Pre-release type"
         type: choice
         default: rc
         options:
@@ -14,7 +14,7 @@ on:
           - beta
           - rc
       force-bump:
-        description: "Select the version increment level:"
+        description: "Select the version increment level"
         type: choice
         default: auto
         options:
