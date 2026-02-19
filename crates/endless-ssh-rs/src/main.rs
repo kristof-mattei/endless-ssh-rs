@@ -12,6 +12,7 @@ mod signal_handlers;
 mod statistics;
 mod timeout;
 mod traits;
+mod utils;
 
 use std::env::{self, VarError};
 use std::sync::Arc;
@@ -36,6 +37,7 @@ use crate::client_queue::process_clients;
 use crate::config::Config;
 use crate::listener::listen_for_new_connections;
 use crate::statistics::{Statistics, statistics_sigusr1_handler};
+use crate::utils::flatten_handle;
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
@@ -76,7 +78,11 @@ fn print_header() {
     );
 }
 
-async fn start_tasks(config: Arc<Config>) -> Result<(), eyre::Report> {
+/// Starts all the tasks, such as the web server, the key refresh, and
+/// ensures all tasks are gracefully shutdown in case of error, ctrl-c or `SIGTERM`.
+async fn start_tasks() -> Result<(), eyre::Report> {
+    let config = get_config()?;
+
     print_header();
 
     // this channel is used to communicate between
@@ -236,13 +242,19 @@ fn main() -> Result<(), eyre::Report> {
 
     init_tracing()?;
 
-    let config = get_config()?;
-
     // initialize the runtime
-    let rt = tokio::runtime::Runtime::new().unwrap();
+    let result: Result<(), eyre::Report> = tokio::runtime::Builder::new_multi_thread()
+        .enable_io()
+        .enable_time()
+        .build()
+        .expect("Failed building the Runtime")
+        .block_on(async {
+            // explicitly launch everything in a spawned task
+            // see https://docs.rs/tokio/latest/tokio/attr.main.html#non-worker-async-function
+            let handle = tokio::task::spawn(start_tasks());
 
-    // start service
-    let result: Result<(), eyre::Report> = rt.block_on(start_tasks(config));
+            flatten_handle(handle).await
+        });
 
     result
 }

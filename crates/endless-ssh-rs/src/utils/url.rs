@@ -1,9 +1,10 @@
 use color_eyre::eyre;
 use url::Url;
 
-/// Adds a segment to a Url
+/// Adds a segment to a `Url`.
+///
 /// # Errors
-/// When the Url given is relative
+/// When the `Url` given is relative.
 #[cfg_attr(not(test), expect(unused, reason = "Library code"))]
 pub fn add_segments(mut base_url: Url, segments: &[&str]) -> Result<Url, eyre::Report> {
     {

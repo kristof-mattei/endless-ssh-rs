@@ -1,6 +1,7 @@
-6
+7
 CLI
 codecov
+env
 mockall
 mockall_double
 tarpit
