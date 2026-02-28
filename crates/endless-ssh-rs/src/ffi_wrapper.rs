@@ -48,10 +48,11 @@ pub fn set_up_handler(
     let sa_mask = 0;
 
     #[expect(
+        clippy::as_conversions,
         clippy::fn_to_numeric_cast_any,
         reason = "We actually need the function as a pointer"
     )]
-    let sig_handler_ptr = sig_handler as usize;
+    let sig_handler_ptr = sig_handler as *const fn() as usize;
 
     let sa = sigaction {
         sa_sigaction: sig_handler_ptr,
