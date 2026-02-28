@@ -5,30 +5,60 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug executable 'rust-seed'",
+            "name": "Debug executable 'endless-ssh-rs'",
             "type": "lldb",
             "request": "launch",
             "cargo": {
-                "args": ["run", "--bin=rust-seed"]
+                "args": ["run", "--bin=endless-ssh-rs"]
             },
             "args": [],
             "env": {
                 "RUST_BACKTRACE": "1",
-                "RUST_LOG": "DEBUG,rust_seed=TRACE"
+                "RUST_LOG": "DEBUG,endless_ssh_rs=TRACE"
             },
             "internalConsoleOptions": "neverOpen",
             "terminal": "integrated"
         },
         {
-            "name": "Debug unit tests in executable 'rust-seed'",
+            "name": "Debug executable 'endless-ssh-rs' wrong-params",
             "type": "lldb",
             "request": "launch",
             "cargo": {
-                "args": ["test", "--bin=rust-seed"]
+                "args": ["run", "--bin=endless-ssh-rs"]
+            },
+            "args": ["wrong-params"],
+            "env": {
+                "RUST_BACKTRACE": "full",
+                "RUST_LOG": "DEBUG,endless_ssh_rs=TRACE"
+            },
+            "internalConsoleOptions": "neverOpen",
+            "terminal": "integrated"
+        },
+        {
+            "name": "Debug executable 'endless-ssh-rs' help",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": ["run", "--bin=endless-ssh-rs"]
+            },
+            "args": ["-h"],
+            "env": {
+                "RUST_BACKTRACE": "full",
+                "RUST_LOG": "DEBUG,endless_ssh_rs=TRACE"
+            },
+            "internalConsoleOptions": "neverOpen",
+            "terminal": "integrated"
+        },
+        {
+            "name": "Debug unit tests in executable 'endless-ssh-rs'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": ["test", "--bin=endless-ssh-rs"]
             },
             "env": {
                 "RUST_BACKTRACE": "1",
-                "RUST_LOG": "DEBUG,rust_seed=TRACE"
+                "RUST_LOG": "DEBUG,endless_ssh_rs=TRACE"
             },
             "internalConsoleOptions": "neverOpen",
             "terminal": "integrated"
@@ -42,7 +72,7 @@
             },
             "env": {
                 "RUST_BACKTRACE": "1",
-                "RUST_LOG": "DEBUG,rust_seed=TRACE"
+                "RUST_LOG": "DEBUG,endless_ssh_rs=TRACE"
             },
             "internalConsoleOptions": "neverOpen",
             "terminal": "integrated"

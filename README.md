@@ -1,23 +1,17 @@
-# Rust seed application
+# Endless SSH RS
 
-This is a framework for building Rust applications
+[![codecov](https://codecov.io/gh/kristof-mattei/endless-ssh-rs/branch/main/graph/badge.svg?token=uke0B75q9l)](https://codecov.io/gh/kristof-mattei/endless-ssh-rs)
 
-It supports:
+A Rust rewrite of the all-popular [Endless SSH tarpit](https://github.com/skeeto/endlessh).
 
-- Building multi-platform images
-- Reusing images when merging in PRs to preserve provenance
-    - Support for tags like `pr-${PR_NUMBER}-latest` (last build on PR), `edge` (last build on `main`), `pr-${SHA_MAIN_HEAD}-${SHA_PR_HEAD}` (uniquely identifying the merge result of a PR)
-- Container attestation
-- Crate publishing
-- Release publishing
-    - Crate publishing to crates.io
-    - Container re-tagging to `:latest`
+Technologies used:
 
-## TODO
+- Rust
+- Tokio
+- Clap (CLI)
+- mockall & mockall_double (testing)
 
-- [ ] Remove old containers when the new one gets build for a PR?<br />
-      Or rely on a general weekly untagged cleanup?
-- [ ] Remove PR containers when PR closed<br />
+Releases can be found [here](https://github.com/kristof-mattei/endless-ssh-rs/releases).
 
 ## License
 

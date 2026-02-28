@@ -1,17 +1,17 @@
 [workspace]
 resolver = "3"
-members = ["crates/*"]
+members = ["crates/endless-ssh-rs", "crates/shared"]
 
 [workspace.package]
 version = "0.0.0-development"
 edition = "2024"
 rust-version = "1.93.1"
 authors = ["Kristof Mattei"]
-description = "Rust seed application"
+description = "endless-ssh-rs"
 license = "MIT"
-categories = ["starter", "seed"]
-keywords = ["integrity", "seed", "starter", "docker", "release"]
-repository = "https://github.com/kristof-mattei/rust-seed"
+categories = ["ssh", "utility"]
+keywords = ["ssh", "tarpit", "script-kiddies"]
+repository = "https://github.com/kristof-mattei/endless-ssh-rs"
 include = ["crates/**", "/LICENSE", "/LICENSE-*"]
 
 [workspace.dependencies]
@@ -58,7 +58,7 @@ decimal_literal_representation = { level = "deny", priority = 127 }
 # default_numeric_fallback = { level = "deny", priority = 127 }
 default_union_representation = { level = "deny", priority = 127 }
 deref_by_slicing = { level = "deny", priority = 127 }
-# No, we already have `non_ascii_idents` which is even bette
+# No, we already have `non_ascii_idents` which is even better
 # disallowed_script_idents = { level = "deny", priority = 127 }
 doc_include_without_cfg = { level = "deny", priority = 127 }
 doc_paragraphs_missing_punctuation = { level = "deny", priority = 127 }
