@@ -167,7 +167,7 @@ async fn start_tasks() -> Result<(), eyre::Report> {
 
     client_cancellation_token.cancel();
 
-    if timeout(StdDuration::from_millis(10000), process_clients_handler)
+    if timeout(StdDuration::from_secs(10), process_clients_handler)
         .await
         .is_err()
     {
@@ -185,7 +185,7 @@ async fn start_tasks() -> Result<(), eyre::Report> {
     }
 
     // wait for the other tasks to shut down gracefully
-    if timeout(StdDuration::from_millis(10000), tasks.wait())
+    if timeout(StdDuration::from_secs(10), tasks.wait())
         .await
         .is_err()
     {
