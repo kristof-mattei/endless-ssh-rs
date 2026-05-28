@@ -21,6 +21,7 @@ pub fn add_segments(mut base_url: Url, segments: &[&str]) -> Result<Url, eyre::R
 mod tests {
     use std::str::FromStr as _;
 
+    use pretty_assertions::assert_matches;
     use url::Url;
 
     use crate::utils::url::add_segments;
@@ -31,10 +32,10 @@ mod tests {
 
         let new_url = add_segments(url, &["foobar"]);
 
-        assert!(matches!(
+        assert_matches!(
             new_url.map(Into::<String>::into).as_deref(),
             Ok("https://example.com/foobar")
-        ));
+        );
     }
 
     #[test]
@@ -43,9 +44,9 @@ mod tests {
 
         let new_url = add_segments(url, &["foo", "bar"]);
 
-        assert!(matches!(
+        assert_matches!(
             new_url.map(Into::<String>::into).as_deref(),
             Ok("https://example.com/foo/bar")
-        ));
+        );
     }
 }
