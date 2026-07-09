@@ -137,7 +137,7 @@ mod tests {
         ctx.expect_gen_range::<usize, RangeInclusive<usize>>()
             .returning(|x| *x.end());
 
-        let fake_randoms = [b'S', b'S', b'H', b'-'];
+        let fake_randoms = *b"SSH-";
 
         ctx.expect_gen_range::<u8, RangeInclusive<u8>>()
             .times(1)
@@ -157,7 +157,7 @@ mod tests {
 
         assert_eq!(randline.len(), max_len);
 
-        let xsh = [b'X', b'S', b'H', b'-'];
+        let xsh = *b"XSH-";
         assert_eq!(randline[..xsh.len()], xsh);
     }
 }
