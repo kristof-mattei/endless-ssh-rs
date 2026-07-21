@@ -36,7 +36,7 @@ tokio = { version = "=1.53.1", features = [
     "sync",
     "io-util",
 ] }
-tokio-util = { version = "=0.7.18", features = ["rt"] }
+tokio-util = { version = "=0.7.19", features = ["rt"] }
 tracing = "=0.1.44"
 tracing-error = "=0.2.1"
 tracing-subscriber = { version = "=0.3.23", features = [
