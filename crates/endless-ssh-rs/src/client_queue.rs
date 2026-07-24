@@ -2,8 +2,9 @@ use std::num::NonZeroU8;
 
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use tokio::time::{Instant, sleep_until};
+use tokio_stream::StreamExt as _;
 use tokio_util::sync::CancellationToken;
+use tokio_util::time::DelayQueue;
 use tracing::{Level, event};
 
 use crate::client::Client;
@@ -14,7 +15,6 @@ pub async fn process_clients(
     cancellation_token: CancellationToken,
     delay: std::time::Duration,
     max_line_length: NonZeroU8,
-    client_sender: UnboundedSender<Client<TcpStream>>,
     mut client_receiver: UnboundedReceiver<Client<TcpStream>>,
     statistics_sender: UnboundedSender<StatisticsMessage>,
 ) {
@@ -22,11 +22,23 @@ pub async fn process_clients(
 
     event!(Level::INFO, "Processing clients");
 
+    let mut clients = DelayQueue::<Client<TcpStream>>::new();
+
     loop {
         tokio::select! {
             biased;
             () = cancellation_token.cancelled() => {
                 break;
+            },
+            Some(expired) = clients.next() => {
+                let Some(client) = process_client(expired.into_inner(), delay, max_line_length, &statistics_sender).await else {
+                    event!(Level::INFO, "Client gone");
+
+                    // no client to re-schedule
+                    continue;
+                };
+
+                clients.insert(client, delay);
             },
             received_client = client_receiver.recv() => {
                 let Some(client) = received_client else {
@@ -35,19 +47,9 @@ pub async fn process_clients(
                     break;
                 };
 
-                let Some(client) = process_client(client, cancellation_token.clone(), delay, max_line_length, &statistics_sender).await else {
-                    event!(Level::INFO, "Client gone");
+                event!(Level::TRACE, addr = ?client.addr(), "Scheduled client");
 
-                    // no client to re-schedule
-                    continue;
-                };
-
-
-                let Ok(()) = client_sender.send(client) else {
-                    event!(Level::ERROR, "Client sender gone");
-
-                    break;
-                };
+                clients.insert(client, delay);
             },
         }
     }
@@ -55,7 +57,6 @@ pub async fn process_clients(
 
 async fn process_client<S>(
     mut client: Client<S>,
-    cancellation_token: CancellationToken,
     delay: std::time::Duration,
     max_line_length: NonZeroU8,
     statistics_sender: &UnboundedSender<StatisticsMessage>,
@@ -63,21 +64,6 @@ async fn process_client<S>(
 where
     S: tokio::io::AsyncWriteExt + std::marker::Unpin + std::fmt::Debug,
 {
-    let deadline = client.send_next();
-
-    let until_ready = deadline.duration_since(Instant::now());
-
-    event!(Level::TRACE, addr = ?client.addr(), ?until_ready, "Scheduled client");
-
-    tokio::select! {
-        biased;
-        () = cancellation_token.cancelled() => {
-            // abandon
-            return None;
-        },
-        () = sleep_until(deadline) => {}
-    }
-
     statistics_sender
         .send(StatisticsMessage::ProcessedClient)
         .expect("Channel should always exist");
@@ -98,9 +84,6 @@ where
                 .send(StatisticsMessage::TimeSpent(delay))
                 .expect("Channel should always exist");
         }
-
-        // and delay again
-        *client.send_next_mut() = Instant::now() + delay;
 
         // Done processing, return
         Some(client)
