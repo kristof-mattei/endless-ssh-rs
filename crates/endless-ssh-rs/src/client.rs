@@ -1,12 +1,13 @@
 use std::net::SocketAddr;
 
-use time::{Duration, OffsetDateTime};
+use time::Duration;
 use tokio::sync::OwnedSemaphorePermit;
+use tokio::time::Instant;
 use tracing::{Level, event};
 
 pub struct Client<S> {
     time_spent: Duration,
-    send_next: OffsetDateTime,
+    send_next: Instant,
     bytes_sent: usize,
     addr: SocketAddr,
     tcp_stream: S,
@@ -50,7 +51,7 @@ impl<S> Client<S> {
     pub fn new(
         stream: S,
         addr: SocketAddr,
-        start_sending_at: OffsetDateTime,
+        start_sending_at: Instant,
         permit: OwnedSemaphorePermit,
     ) -> Self {
         Self {
@@ -72,11 +73,11 @@ impl<S> Client<S> {
         &mut self.time_spent
     }
 
-    pub fn send_next(&self) -> OffsetDateTime {
+    pub fn send_next(&self) -> Instant {
         self.send_next
     }
 
-    pub fn send_next_mut(&mut self) -> &mut OffsetDateTime {
+    pub fn send_next_mut(&mut self) -> &mut Instant {
         &mut self.send_next
     }
 
