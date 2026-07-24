@@ -1,9 +1,8 @@
 use std::num::NonZeroU8;
 
-use time::OffsetDateTime;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use tokio::time::sleep;
+use tokio::time::{Instant, sleep_until};
 use tokio_util::sync::CancellationToken;
 use tracing::{Level, event};
 
@@ -64,25 +63,19 @@ async fn process_client<S>(
 where
     S: tokio::io::AsyncWriteExt + std::marker::Unpin + std::fmt::Debug,
 {
-    let now = OffsetDateTime::now_utc();
+    let deadline = client.send_next();
 
-    let client_send_next = client.send_next();
+    let until_ready = deadline.duration_since(Instant::now());
 
-    if client_send_next > now {
-        let until_ready = (client_send_next - now)
-            .try_into()
-            .expect("`send_next` is larger than `now`, so duration should be positive");
+    event!(Level::TRACE, addr = ?client.addr(), ?until_ready, "Scheduled client");
 
-        event!(Level::TRACE, addr = ?client.addr(), ?until_ready, "Scheduled client");
-
-        tokio::select! {
-            biased;
-            () = cancellation_token.cancelled() => {
-                // abandon
-                return None;
-            },
-            () = sleep(until_ready) => {}
-        }
+    tokio::select! {
+        biased;
+        () = cancellation_token.cancelled() => {
+            // abandon
+            return None;
+        },
+        () = sleep_until(deadline) => {}
     }
 
     statistics_sender
@@ -107,7 +100,7 @@ where
         }
 
         // and delay again
-        *client.send_next_mut() = OffsetDateTime::now_utc() + delay;
+        *client.send_next_mut() = Instant::now() + delay;
 
         // Done processing, return
         Some(client)

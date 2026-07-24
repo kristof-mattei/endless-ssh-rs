@@ -2,10 +2,10 @@ use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::sync::Arc;
 
 use color_eyre::eyre;
-use time::OffsetDateTime;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{Semaphore, TryAcquireError};
+use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 use tracing::{Level, event};
 
@@ -112,7 +112,7 @@ impl<'c> Listener<'c> {
                             let client = Client::new(
                                 socket,
                                 addr,
-                                OffsetDateTime::now_utc() + self.config.delay,
+                                Instant::now() + self.config.delay,
                                 permit,
                             );
 
