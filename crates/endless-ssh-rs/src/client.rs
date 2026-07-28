@@ -2,44 +2,20 @@ use std::net::SocketAddr;
 
 use time::Duration;
 use tokio::sync::OwnedSemaphorePermit;
-use tokio::time::Instant;
 use tracing::{Level, event};
 
 pub struct Client<S> {
     time_spent: Duration,
-    send_next: Instant,
     bytes_sent: usize,
     addr: SocketAddr,
     tcp_stream: S,
     permit: OwnedSemaphorePermit,
 }
 
-impl<S> std::cmp::Eq for Client<S> {}
-
-impl<S> std::cmp::PartialEq for Client<S> {
-    fn eq(&self, other: &Self) -> bool {
-        self.addr == other.addr
-    }
-}
-
-impl<S> std::cmp::Ord for Client<S> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // flipped to get the oldest first
-        other.send_next.cmp(&self.send_next)
-    }
-}
-
-impl<S> std::cmp::PartialOrd for Client<S> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
 impl<S> std::fmt::Debug for Client<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Client")
             .field("time_spent", &self.time_spent)
-            .field("send_next", &self.send_next)
             .field("bytes_sent", &self.bytes_sent)
             .field("addr", &self.addr)
             // .field("tcp_stream", &self.tcp_stream)
@@ -48,15 +24,9 @@ impl<S> std::fmt::Debug for Client<S> {
 }
 
 impl<S> Client<S> {
-    pub fn new(
-        stream: S,
-        addr: SocketAddr,
-        start_sending_at: Instant,
-        permit: OwnedSemaphorePermit,
-    ) -> Self {
+    pub fn new(stream: S, addr: SocketAddr, permit: OwnedSemaphorePermit) -> Self {
         Self {
             time_spent: Duration::ZERO,
-            send_next: start_sending_at,
             addr,
             bytes_sent: 0,
             tcp_stream: stream,
@@ -71,14 +41,6 @@ impl<S> Client<S> {
 
     pub fn time_spent_mut(&mut self) -> &mut Duration {
         &mut self.time_spent
-    }
-
-    pub fn send_next(&self) -> Instant {
-        self.send_next
-    }
-
-    pub fn send_next_mut(&mut self) -> &mut Instant {
-        &mut self.send_next
     }
 
     #[expect(unused, reason = "Consistency with other props")]
