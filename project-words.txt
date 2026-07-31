@@ -38,13 +38,11 @@ nextest
 nsec
 nvmrc
 pathbuf
-pids
 postprocessors
 prereleased
 profraw
 randline
 RCVBUF
-recieve
 Retag
 Retagging
 rngs
