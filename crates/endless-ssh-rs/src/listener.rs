@@ -5,7 +5,6 @@ use color_eyre::eyre;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{Semaphore, TryAcquireError};
-use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 use tracing::{Level, event};
 
@@ -109,12 +108,7 @@ impl<'c> Listener<'c> {
                     // no in-between, no sense in waiting
                     match Arc::clone(&semaphore).try_acquire_owned() {
                         Ok(permit) => {
-                            let client = Client::new(
-                                socket,
-                                addr,
-                                Instant::now() + self.config.delay,
-                                permit,
-                            );
+                            let client = Client::new(socket, addr, permit);
 
                             // we have a permit, we can send it on the queue
                             client_sender.send(client)?;

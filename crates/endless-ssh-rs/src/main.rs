@@ -120,7 +120,6 @@ async fn start_tasks() -> Result<(), eyre::Report> {
             client_cancellation_token.clone(),
             config.delay,
             config.max_line_length,
-            client_sender.clone(),
             client_receiver,
             statistics_sender.clone(),
         ))
