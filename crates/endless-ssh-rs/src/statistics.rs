@@ -1,4 +1,4 @@
-use time::Duration;
+use time::SignedDuration;
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
@@ -23,7 +23,7 @@ pub struct Statistics {
     pub connects: u64,
     pub lost_clients: u64,
     pub processed_clients: u64,
-    pub time_spent: Duration,
+    pub time_spent: SignedDuration,
 }
 
 impl Statistics {
@@ -38,7 +38,7 @@ impl Statistics {
                 connects: 0,
                 lost_clients: 0,
                 processed_clients: 0,
-                time_spent: Duration::ZERO,
+                time_spent: SignedDuration::ZERO,
             };
 
             loop {

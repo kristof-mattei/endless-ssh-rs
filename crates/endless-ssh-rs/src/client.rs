@@ -1,12 +1,12 @@
 use std::net::SocketAddr;
 
-use time::Duration;
+use time::SignedDuration;
 use tokio::sync::OwnedSemaphorePermit;
 use tokio::time::Instant;
 use tracing::{Level, event};
 
 pub struct Client<S> {
-    time_spent: Duration,
+    time_spent: SignedDuration,
     send_next: Instant,
     bytes_sent: usize,
     addr: SocketAddr,
@@ -55,7 +55,7 @@ impl<S> Client<S> {
         permit: OwnedSemaphorePermit,
     ) -> Self {
         Self {
-            time_spent: Duration::ZERO,
+            time_spent: SignedDuration::ZERO,
             send_next: start_sending_at,
             addr,
             bytes_sent: 0,
@@ -65,11 +65,11 @@ impl<S> Client<S> {
     }
 
     #[expect(unused, reason = "Consistency with other props")]
-    pub fn time_spent(&self) -> Duration {
+    pub fn time_spent(&self) -> SignedDuration {
         self.time_spent
     }
 
-    pub fn time_spent_mut(&mut self) -> &mut Duration {
+    pub fn time_spent_mut(&mut self) -> &mut SignedDuration {
         &mut self.time_spent
     }
 
