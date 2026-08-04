@@ -1,11 +1,11 @@
 use std::fmt::Display;
 
 use libc::timespec;
-use time::Duration;
+use time::SignedDuration;
 
 pub enum Timeout {
     Infinite,
-    Duration(Duration),
+    Duration(SignedDuration),
 }
 
 impl std::fmt::Debug for Timeout {
@@ -47,8 +47,8 @@ impl Display for Timeout {
     }
 }
 
-impl From<Option<Duration>> for Timeout {
-    fn from(duration: Option<Duration>) -> Self {
+impl From<Option<SignedDuration>> for Timeout {
+    fn from(duration: Option<SignedDuration>) -> Self {
         match duration {
             None => Timeout::Infinite,
             Some(d) => Timeout::Duration(d),
