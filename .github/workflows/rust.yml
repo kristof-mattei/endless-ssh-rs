@@ -105,6 +105,7 @@ jobs:
       checks: write
       contents: read
       id-token: write
+      issues: read
       pull-requests: write
     steps:
       - *checkout
@@ -249,6 +250,7 @@ jobs:
     # when all upstream success: success
     # combination of upstream skip and success: success
     runs-on: ubuntu-slim
+    permissions: {}
     needs:
       - changes
       - cargo-build
